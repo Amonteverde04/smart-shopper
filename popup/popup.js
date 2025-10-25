@@ -132,7 +132,7 @@ window.addEventListener("resize", () => {
 	document.querySelectorAll("table").forEach((table) => {
 		if (table.offsetHeight > Number(maxTableHeight)) {
 			table.querySelectorAll("td:last-child").forEach((td) => {
-				td.style.borderRight = "1px solid var(--black)";
+				td.style.borderRight = "1px solid var(--foreground)";
 			});
 		}
 	});
