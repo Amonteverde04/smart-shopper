@@ -1,0 +1,12 @@
+{
+	"manifest_version": 3,
+	"name": "Smart Shopper (dev)",
+	"version": "0.0.1",
+	"description": "Prototype: Summarize and compare product pages using Chrome built-in AI.",
+	"action": {
+		"default_popup": "popup/popup.html",
+		"default_title": "Smart Shopper"
+	},
+	"permissions": ["tabs", "activeTab", "scripting", "storage", "ai"],
+	"host_permissions": ["<all_urls>"]
+}

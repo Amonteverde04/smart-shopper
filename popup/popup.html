@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Smart Shopper</title>
+		<style>
+			:root {
+				--primary-color: #4c8bf5;
+				--primary-hover: color-mix(in oklab, var(--primary-color), var(--white) 95%);
+				--white: #fff;
+				--black: #1f1f1f;
+				--ready: #1da462;
+				--loading: #ffcd46;
+				--error: #dd5144;
+				--scroll-gray: #888;
+				--disabled-bg: #d3d3d3;
+				--disabled-text: #777;
+				--disabled-border: #aaa;
+				--font-size-base: 16px;
+				--spacing-base: 12px;
+				--radius-base: 4px;
+				--table-max-height: 200px;
+			}
+			body {
+				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+				width: 320px;
+				padding: var(--spacing-base);
+				color: var(--black);
+			}
+			#title {
+				font-size: var(--font-size-base);
+			}
+			button {
+				width: 100%;
+				padding: 6px;
+				font-size: var(--font-size-base);
+				border: 1px solid var(--black);
+				border-radius: var(--radius-base);
+				background-color: var(--primary-color);
+				color: var(--white);
+				cursor: pointer;
+			}
+			button:disabled {
+				background-color: var(--disabled-bg);
+				color: var(--disabled-text);
+				border-color: var(--disabled-border);
+				cursor: not-allowed;
+			}
+			.table-wrapper {
+				border: 1px solid var(--black);
+				border-radius: 2px;
+				overflow-x: hidden;
+				max-height: var(--table-max-height);
+				/* Firefox */
+				scrollbar-width: thin;
+				scrollbar-color: var(--primary-color) var(--white);
+			}
+			.table-wrapper::-webkit-scrollbar {
+				width: 6px;
+			}
+			.table-wrapper::-webkit-scrollbar-track {
+				background: var(--white);
+				border-radius: 3px;
+			}
+			.table-wrapper::-webkit-scrollbar-thumb {
+				background-color: var(--scroll-gray);
+				border-radius: 3px;
+				border: 1px solid var(--white);
+			}
+			.table-wrapper::-webkit-scrollbar-thumb:hover {
+				background-color: var(--scroll-gray);
+			}
+			table {
+				border-collapse: collapse;
+				display: block;
+			}
+			table tr:last-child td {
+				border-bottom: none !important;
+			}
+			thead {
+				box-shadow: inset 0 -0.5px 0 0 var(--black);
+				position: sticky;
+				top: 0;
+				background: var(--white);
+				z-index: 10;
+				font-weight: bold;
+			}
+			tr {
+				max-width: 100%;
+				overflow: hidden; /* hide overflow */
+			}
+			tbody tr:hover {
+				background-color: var(--primary-hover);
+			}
+			td {
+				line-clamp: 2;
+				border-bottom: 1px solid var(--black);
+				padding: 6px;
+			}
+			tr td:nth-child(1) {
+				border-right: 1px solid var(--black);
+				width: 100%;
+			}
+			.truncate-multiline {
+				display: -webkit-box;
+				line-clamp: 2;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				line-height: 1.4em;
+				max-height: calc(1.4em * 2);
+			}
+			#loading-table {
+				height: var(--table-max-height);
+				display: none;
+				gap: 4px;
+				align-items: center;
+				justify-content: center;
+				font-size: 16px;
+				background: linear-gradient(100deg, #e0e0e0 40%, #f8f8f8 50%, #e0e0e0 60%);
+				background-size: 200% 100%;
+				border-radius: 4px;
+				animation: shimmer 2.5s infinite;
+			}
+			.loading-spinner {
+				height: 32px;
+				width: 32px;
+				animation: spin 0.8s linear infinite;
+			}
+			#summarize-button {
+				margin-top: var(--spacing-base);
+			}
+			.checkbox-container input[type="checkbox"] {
+				opacity: 0;
+				position: absolute;
+				width: 0;
+				height: 0;
+			}
+			.checkmark {
+				width: 24px;
+				height: 24px;
+				background-color: var(--white);
+				border-radius: var(--radius-base);
+				border: 1px solid var(--black);
+				transition: all 0.2s ease;
+				position: relative;
+				flex-shrink: 0;
+			}
+			.checkbox-container:hover .checkmark {
+				border-color: var(--primary-color);
+			}
+			.checkmark::after {
+				content: "";
+				position: absolute;
+				display: none;
+				left: 5px;
+				top: 1px;
+				width: 5px;
+				height: 10px;
+				border: solid var(--white);
+				border-width: 0 2px 2px 0;
+				transform: rotate(45deg);
+			}
+			.checkbox-container input:checked + .checkmark {
+				background-color: var(--primary-color);
+				border-color: var(--black);
+			}
+			.checkbox-container input:checked + .checkmark::after {
+				display: block;
+			}
+			@keyframes shimmer {
+				0% {
+					background-position: -200% 0;
+				}
+				100% {
+					background-position: 200% 0;
+				}
+			}
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<h3 id="title">Smart Shopper</h3>
+		<div id="table-wrapper-div" class="table-wrapper">
+			<table id="tab-table">
+				<thead>
+					<tr>
+						<td>Tab</td>
+						<td>Y/N</td>
+					</tr>
+				</thead>
+				<tbody id="tab-list"></tbody>
+			</table>
+			<div id="loading-table">
+				<svg
+					class="loading-spinner"
+					fill="#000000"
+					viewBox="-7 0 32 32"
+					version="1.1"
+					xmlns="http://www.w3.org/2000/svg">
+					<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+					<g
+						id="SVGRepo_tracerCarrier"
+						stroke-linecap="round"
+						stroke-linejoin="round"></g>
+					<g id="SVGRepo_iconCarrier">
+						<title>loading</title>
+						<path
+							d="M2.080 14.040l4-1.040c0.44-0.12 0.72-0.56 0.6-1.040-0.12-0.44-0.56-0.72-1.040-0.6l-2.080 0.56c0.68-0.88 1.56-1.6 2.64-2.080 1.64-0.72 3.44-0.76 5.12-0.12 1.64 0.64 2.96 1.92 3.68 3.52 0.2 0.44 0.68 0.6 1.12 0.44 0.44-0.2 0.6-0.68 0.44-1.12-0.88-2.040-2.52-3.6-4.6-4.44-2.080-0.8-4.36-0.76-6.4 0.12-1.36 0.6-2.48 1.52-3.36 2.68l-0.52-1.96c-0.12-0.44-0.56-0.72-1.040-0.6-0.44 0.12-0.72 0.56-0.6 1.040l1.040 4c0.12 0.56 0.4 0.8 1 0.64zM17.72 22.52l-1.040-3.96c0 0-0.16-0.8-0.96-0.6v0l-4 1.040c-0.44 0.12-0.72 0.56-0.6 1.040 0.12 0.44 0.56 0.72 1.040 0.6l2.080-0.56c-1.76 2.32-4.88 3.28-7.72 2.16-1.64-0.64-2.96-1.92-3.68-3.52-0.2-0.44-0.68-0.6-1.12-0.44-0.44 0.2-0.6 0.68-0.44 1.12 0.88 2.040 2.52 3.6 4.6 4.44 1 0.4 2 0.56 3.040 0.56 2.64 0 5.12-1.24 6.72-3.4l0.52 1.96c0.080 0.36 0.44 0.64 0.8 0.64 0.080 0 0.16 0 0.2-0.040 0.4-0.16 0.68-0.6 0.56-1.040z"></path>
+					</g>
+				</svg>
+				Summarizing...
+			</div>
+		</div>
+		<button id="summarize-button">Summarize products</button>
+
+		<script src="popup.js"></script>
+	</body>
+</html>
