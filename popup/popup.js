@@ -1,8 +1,6 @@
 const btn = document.getElementById("summarize-button");
 const tabList = document.getElementById("tab-list");
-const tableWrapper = document.getElementById("table-wrapper-div");
-const tabTable = document.getElementById("tab-table");
-const loadingTable = document.getElementById("loading-table");
+const loadingUI = document.getElementById("loading");
 
 // Load UI
 document.addEventListener("DOMContentLoaded", async () => {
@@ -28,11 +26,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 			// Checkbox cell
 			const checkboxTd = document.createElement("td");
+			const label = document.createElement("label");
+			label.classList.add("checkmark-container");
+
 			const checkbox = document.createElement("input");
 			checkbox.type = "checkbox";
 			checkbox.checked = true;
 			checkbox.id = tab.id;
-			checkboxTd.appendChild(checkbox);
+			checkbox.classList.add("checkmark");
+
+			const span = document.createElement("span");
+			span.classList.add("checkmark-inner");
+
+			label.appendChild(checkbox);
+			label.appendChild(span);
+			checkboxTd.appendChild(label);
 			tr.appendChild(checkboxTd);
 
 			tabList.appendChild(tr);
@@ -130,16 +138,18 @@ window.addEventListener("resize", () => {
 	});
 });
 
-function setLoading(loading) {
-	if (loading) {
-		tabTable.style.display = "none";
-		loadingTable.style.display = "flex";
-		btn.disabled = true;
-		tableWrapper.style.border = "none";
-	} else {
-		tabTable.style.display = "block";
-		loadingTable.style.display = "none";
-		btn.disabled = false;
-		tableWrapper.style.border = "1px solid var(--black)";
-	}
+function toggleElementsDisabled(selectors, disabled) {
+	document.querySelectorAll(selectors).forEach((el) => {
+		el.disabled = disabled;
+		el.classList.toggle("disabled", disabled);
+	});
+}
+
+function setLoading(isLoading) {
+	toggleElementsDisabled(".checkmark", isLoading);
+	toggleElementsDisabled(".checkmark-container", isLoading);
+
+	tabList.classList.toggle("disabled", isLoading);
+	btn.disabled = isLoading;
+	loadingUI.style.display = isLoading ? "flex" : "none";
 }

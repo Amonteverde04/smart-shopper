@@ -6,12 +6,12 @@
 		<title>Smart Shopper</title>
 		<style>
 			:root {
+				--background: #fafafa;
+				--foreground: #1f1f1f;
 				--primary-color: #4c8bf5;
-				--primary-hover: color-mix(in oklab, var(--primary-color), var(--white) 95%);
-				--white: #fff;
-				--black: #1f1f1f;
-				--ready: #1da462;
-				--loading: #ffcd46;
+				--primary-hover: color-mix(in oklab, var(--primary-color), var(--background) 90%);
+				--success: #1da462;
+				--warning: #ffcd46;
 				--error: #dd5144;
 				--scroll-gray: #888;
 				--disabled-bg: #d3d3d3;
@@ -24,9 +24,10 @@
 			}
 			body {
 				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-				width: 320px;
+				width: 600px;
 				padding: var(--spacing-base);
-				color: var(--black);
+				color: var(--foreground);
+				background: var(--background);
 			}
 			#title {
 				font-size: var(--font-size-base);
@@ -35,38 +36,40 @@
 				width: 100%;
 				padding: 6px;
 				font-size: var(--font-size-base);
-				border: 1px solid var(--black);
+				border: none;
 				border-radius: var(--radius-base);
 				background-color: var(--primary-color);
-				color: var(--white);
+				color: var(--background);
 				cursor: pointer;
 			}
 			button:disabled {
 				background-color: var(--disabled-bg);
-				color: var(--disabled-text);
 				border-color: var(--disabled-border);
 				cursor: not-allowed;
 			}
+			#summarize-button {
+				margin-top: var(--spacing-base);
+			}
 			.table-wrapper {
-				border: 1px solid var(--black);
+				border: 1px solid var(--foreground);
 				border-radius: 2px;
 				overflow-x: hidden;
 				max-height: var(--table-max-height);
 				/* Firefox */
 				scrollbar-width: thin;
-				scrollbar-color: var(--primary-color) var(--white);
+				scrollbar-color: var(--primary-color) var(--background);
 			}
 			.table-wrapper::-webkit-scrollbar {
 				width: 6px;
 			}
 			.table-wrapper::-webkit-scrollbar-track {
-				background: var(--white);
+				background: var(--background);
 				border-radius: 3px;
 			}
 			.table-wrapper::-webkit-scrollbar-thumb {
 				background-color: var(--scroll-gray);
 				border-radius: 3px;
-				border: 1px solid var(--white);
+				border: 1px solid var(--foreground);
 			}
 			.table-wrapper::-webkit-scrollbar-thumb:hover {
 				background-color: var(--scroll-gray);
@@ -75,31 +78,37 @@
 				border-collapse: collapse;
 				display: block;
 			}
+			table .disabled {
+				color: var(--disabled-text);
+			}
+			table .disabled input[type="checkbox"] {
+				cursor: not-allowed;
+			}
 			table tr:last-child td {
 				border-bottom: none !important;
 			}
 			thead {
-				box-shadow: inset 0 -0.5px 0 0 var(--black);
+				box-shadow: inset 0 -0.5px 0 0 var(--foreground);
 				position: sticky;
 				top: 0;
-				background: var(--white);
+				background: var(--background);
 				z-index: 10;
 				font-weight: bold;
 			}
 			tr {
 				max-width: 100%;
 				overflow: hidden; /* hide overflow */
+				cursor: default;
 			}
 			tbody tr:hover {
 				background-color: var(--primary-hover);
 			}
 			td {
 				line-clamp: 2;
-				border-bottom: 1px solid var(--black);
+				border-bottom: 1px solid var(--foreground);
 				padding: 6px;
 			}
 			tr td:nth-child(1) {
-				border-right: 1px solid var(--black);
 				width: 100%;
 			}
 			.truncate-multiline {
@@ -112,63 +121,45 @@
 				line-height: 1.4em;
 				max-height: calc(1.4em * 2);
 			}
-			#loading-table {
-				height: var(--table-max-height);
+			#loading {
+				margin-top: var(--spacing-base);
 				display: none;
-				gap: 4px;
 				align-items: center;
-				justify-content: center;
-				font-size: 16px;
-				background: linear-gradient(100deg, #e0e0e0 40%, #f8f8f8 50%, #e0e0e0 60%);
-				background-size: 200% 100%;
-				border-radius: 4px;
-				animation: shimmer 2.5s infinite;
+				gap: var(--radius-base);
+				font-size: var(--font-size-base);
 			}
 			.loading-spinner {
 				height: 32px;
 				width: 32px;
+				fill: var(--primary-color);
 				animation: spin 0.8s linear infinite;
 			}
-			#summarize-button {
-				margin-top: var(--spacing-base);
-			}
-			.checkbox-container input[type="checkbox"] {
-				opacity: 0;
-				position: absolute;
-				width: 0;
-				height: 0;
+			.checkmark-container {
+				position: relative;
+				overflow: hidden;
 			}
 			.checkmark {
+				display: none;
+			}
+			.checkmark-inner {
+				display: inline-block;
 				width: 24px;
 				height: 24px;
-				background-color: var(--white);
-				border-radius: var(--radius-base);
-				border: 1px solid var(--black);
-				transition: all 0.2s ease;
-				position: relative;
-				flex-shrink: 0;
+				border-radius: 50%;
+				border: 1px solid var(--foreground);
+				background: transparent no-repeat center;
 			}
-			.checkbox-container:hover .checkmark {
+			.checkmark:checked + .checkmark-inner {
 				border-color: var(--primary-color);
-			}
-			.checkmark::after {
-				content: "";
-				position: absolute;
-				display: none;
-				left: 5px;
-				top: 1px;
-				width: 5px;
-				height: 10px;
-				border: solid var(--white);
-				border-width: 0 2px 2px 0;
-				transform: rotate(45deg);
-			}
-			.checkbox-container input:checked + .checkmark {
 				background-color: var(--primary-color);
-				border-color: var(--black);
+				background-image: url("data:image/svg+xml,%3C%3Fxml version='1.0' encoding='UTF-8'%3F%3E%3Csvg width='14px' height='10px' viewBox='0 0 14 10' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3C!-- Generator: Sketch 59.1 (86144) - https://sketch.com --%3E%3Ctitle%3Echeck%3C/title%3E%3Cdesc%3ECreated with Sketch.%3C/desc%3E%3Cg id='Page-1' stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg id='ios_modification' transform='translate(-27.000000, -191.000000)' fill='%23FFFFFF' fill-rule='nonzero'%3E%3Cg id='Group-Copy' transform='translate(0.000000, 164.000000)'%3E%3Cg id='ic-check-18px' transform='translate(25.000000, 23.000000)'%3E%3Cpolygon id='check' points='6.61 11.89 3.5 8.78 2.44 9.84 6.61 14 15.56 5.05 14.5 4'%3E%3C/polygon%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 			}
-			.checkbox-container input:checked + .checkmark::after {
-				display: block;
+			.disabled > .checkmark-inner {
+				border-color: var(--disabled-border);
+			}
+			.disabled > .checkmark:checked + .checkmark-inner {
+				background-color: var(--disabled-bg);
+				border-color: var(--disabled-border);
 			}
 			@keyframes shimmer {
 				0% {
@@ -191,34 +182,31 @@
 			<table id="tab-table">
 				<thead>
 					<tr>
-						<td>Tab</td>
-						<td>Y/N</td>
+						<td>Products To Summarize</td>
+						<td></td>
 					</tr>
 				</thead>
 				<tbody id="tab-list"></tbody>
 			</table>
-			<div id="loading-table">
-				<svg
-					class="loading-spinner"
-					fill="#000000"
-					viewBox="-7 0 32 32"
-					version="1.1"
-					xmlns="http://www.w3.org/2000/svg">
-					<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-					<g
-						id="SVGRepo_tracerCarrier"
-						stroke-linecap="round"
-						stroke-linejoin="round"></g>
-					<g id="SVGRepo_iconCarrier">
-						<title>loading</title>
-						<path
-							d="M2.080 14.040l4-1.040c0.44-0.12 0.72-0.56 0.6-1.040-0.12-0.44-0.56-0.72-1.040-0.6l-2.080 0.56c0.68-0.88 1.56-1.6 2.64-2.080 1.64-0.72 3.44-0.76 5.12-0.12 1.64 0.64 2.96 1.92 3.68 3.52 0.2 0.44 0.68 0.6 1.12 0.44 0.44-0.2 0.6-0.68 0.44-1.12-0.88-2.040-2.52-3.6-4.6-4.44-2.080-0.8-4.36-0.76-6.4 0.12-1.36 0.6-2.48 1.52-3.36 2.68l-0.52-1.96c-0.12-0.44-0.56-0.72-1.040-0.6-0.44 0.12-0.72 0.56-0.6 1.040l1.040 4c0.12 0.56 0.4 0.8 1 0.64zM17.72 22.52l-1.040-3.96c0 0-0.16-0.8-0.96-0.6v0l-4 1.040c-0.44 0.12-0.72 0.56-0.6 1.040 0.12 0.44 0.56 0.72 1.040 0.6l2.080-0.56c-1.76 2.32-4.88 3.28-7.72 2.16-1.64-0.64-2.96-1.92-3.68-3.52-0.2-0.44-0.68-0.6-1.12-0.44-0.44 0.2-0.6 0.68-0.44 1.12 0.88 2.040 2.52 3.6 4.6 4.44 1 0.4 2 0.56 3.040 0.56 2.64 0 5.12-1.24 6.72-3.4l0.52 1.96c0.080 0.36 0.44 0.64 0.8 0.64 0.080 0 0.16 0 0.2-0.040 0.4-0.16 0.68-0.6 0.56-1.040z"></path>
-					</g>
-				</svg>
-				Summarizing...
-			</div>
 		</div>
 		<button id="summarize-button">Summarize products</button>
+		<div id="loading">
+			<svg
+				class="loading-spinner"
+				fill="#000000"
+				viewBox="-7 0 32 32"
+				version="1.1"
+				xmlns="http://www.w3.org/2000/svg">
+				<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+				<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+				<g id="SVGRepo_iconCarrier">
+					<title>loading</title>
+					<path
+						d="M2.080 14.040l4-1.040c0.44-0.12 0.72-0.56 0.6-1.040-0.12-0.44-0.56-0.72-1.040-0.6l-2.080 0.56c0.68-0.88 1.56-1.6 2.64-2.080 1.64-0.72 3.44-0.76 5.12-0.12 1.64 0.64 2.96 1.92 3.68 3.52 0.2 0.44 0.68 0.6 1.12 0.44 0.44-0.2 0.6-0.68 0.44-1.12-0.88-2.040-2.52-3.6-4.6-4.44-2.080-0.8-4.36-0.76-6.4 0.12-1.36 0.6-2.48 1.52-3.36 2.68l-0.52-1.96c-0.12-0.44-0.56-0.72-1.040-0.6-0.44 0.12-0.72 0.56-0.6 1.040l1.040 4c0.12 0.56 0.4 0.8 1 0.64zM17.72 22.52l-1.040-3.96c0 0-0.16-0.8-0.96-0.6v0l-4 1.040c-0.44 0.12-0.72 0.56-0.6 1.040 0.12 0.44 0.56 0.72 1.040 0.6l2.080-0.56c-1.76 2.32-4.88 3.28-7.72 2.16-1.64-0.64-2.96-1.92-3.68-3.52-0.2-0.44-0.68-0.6-1.12-0.44-0.44 0.2-0.6 0.68-0.44 1.12 0.88 2.040 2.52 3.6 4.6 4.44 1 0.4 2 0.56 3.040 0.56 2.64 0 5.12-1.24 6.72-3.4l0.52 1.96c0.080 0.36 0.44 0.64 0.8 0.64 0.080 0 0.16 0 0.2-0.040 0.4-0.16 0.68-0.6 0.56-1.040z"></path>
+				</g>
+			</svg>
+			Summarizing...
+		</div>
 
 		<script src="popup.js"></script>
 	</body>
