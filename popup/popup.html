@@ -22,6 +22,10 @@
 				--radius-base: 4px;
 				--table-max-height: 200px;
 			}
+			* {
+				margin: 0;
+				padding: 0;
+			}
 			body {
 				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 				width: 600px;
@@ -58,6 +62,7 @@
 				/* Firefox */
 				scrollbar-width: thin;
 				scrollbar-color: var(--primary-color) var(--background);
+				margin-top: var(--spacing-base);
 			}
 			.table-wrapper::-webkit-scrollbar {
 				width: 6px;
@@ -180,12 +185,6 @@
 		<h3 id="title">Smart Shopper</h3>
 		<div id="table-wrapper-div" class="table-wrapper">
 			<table id="tab-table">
-				<thead>
-					<tr>
-						<td>Products To Summarize</td>
-						<td></td>
-					</tr>
-				</thead>
 				<tbody id="tab-list"></tbody>
 			</table>
 		</div>
