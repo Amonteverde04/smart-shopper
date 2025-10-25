@@ -1,6 +1,8 @@
 const btn = document.getElementById("summarize-button");
 const tabList = document.getElementById("tab-list");
 const loadingUI = document.getElementById("loading");
+const summaryContainer = document.getElementById("summary-comparison-container");
+const summaryContent = document.getElementById("summary-content");
 
 // Load UI
 document.addEventListener("DOMContentLoaded", async () => {
@@ -114,7 +116,30 @@ btn.addEventListener("click", async () => {
 		}
 
 		// We have array of product summaries. Let's do something with them on UI.
-		console.log(productSummaries);
+		summaryContent.innerHTML = productSummaries
+			.map(
+				(p, i) => `
+      				<div class="summary-card">
+      					<div class="summary-header">Product ${i + 1}</div>
+      				  	<div class="summary-body">
+						  	<ul>
+        				  		${p.extractedSummary
+									.split("\n")
+									.map(
+										(line) =>
+											`<li class="summary-item">${line.replace(
+												/^\*\s*/,
+												""
+											)}</li>`
+									)
+									.join("")}
+        					</ul>
+					  	</div>
+      				</div>`
+			)
+			.join("");
+		summaryContainer.style.display = "block";
+		scrollToId(summaryContainer.id);
 	} catch (err) {
 		console.error(err);
 	}
@@ -152,4 +177,13 @@ function setLoading(isLoading) {
 	tabList.classList.toggle("disabled", isLoading);
 	btn.disabled = isLoading;
 	loadingUI.style.display = isLoading ? "flex" : "none";
+}
+
+function scrollToId(id, delay = 100) {
+	setTimeout(() => {
+		const element = document.getElementById(id);
+		if (element) {
+			element.scrollIntoView({ behavior: "smooth", block: "start" });
+		}
+	}, delay);
 }

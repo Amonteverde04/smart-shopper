@@ -140,8 +140,11 @@
 				animation: spin 0.8s linear infinite;
 			}
 			.checkmark-container {
+				display: block;
 				position: relative;
-				overflow: hidden;
+				cursor: pointer;
+				width: 24px;
+				height: 24px;
 			}
 			.checkmark {
 				display: none;
@@ -151,7 +154,7 @@
 				width: 24px;
 				height: 24px;
 				border-radius: 50%;
-				border: 1px solid var(--foreground);
+				outline: 1px solid var(--foreground);
 				background: transparent no-repeat center;
 			}
 			.checkmark:checked + .checkmark-inner {
@@ -161,10 +164,37 @@
 			}
 			.disabled > .checkmark-inner {
 				border-color: var(--disabled-border);
+				cursor: not-allowed;
 			}
 			.disabled > .checkmark:checked + .checkmark-inner {
 				background-color: var(--disabled-bg);
 				border-color: var(--disabled-border);
+				cursor: not-allowed;
+			}
+			#summary-comparison-container {
+				display: none;
+				margin-top: var(--spacing-base);
+			}
+			#summary-content {
+				margin-top: var(--spacing-base);
+				display: flex;
+				flex-direction: column;
+				gap: var(--spacing-base);
+			}
+			.summary-card {
+				background: var(--background);
+				border: 1px solid var(--disabled-border);
+				border-radius: 8px;
+				padding: var(--spacing-base);
+			}
+			.summary-header {
+				font-weight: 600;
+			}
+			.summary-body {
+				margin-top: 6px;
+			}
+			.summary-item {
+				margin-left: 24px;
 			}
 			@keyframes shimmer {
 				0% {
@@ -182,13 +212,13 @@
 		</style>
 	</head>
 	<body>
-		<h3 id="title">Smart Shopper</h3>
+		<h3 id="title">Tabs</h3>
 		<div id="table-wrapper-div" class="table-wrapper">
 			<table id="tab-table">
 				<tbody id="tab-list"></tbody>
 			</table>
 		</div>
-		<button id="summarize-button">Summarize products</button>
+		<button id="summarize-button">Summarize & compare products</button>
 		<div id="loading">
 			<svg
 				class="loading-spinner"
@@ -206,7 +236,10 @@
 			</svg>
 			Summarizing...
 		</div>
-
+		<div id="summary-comparison-container">
+			<h3 id="title">Summary</h3>
+			<div id="summary-content"></div>
+		</div>
 		<script src="popup.js"></script>
 	</body>
 </html>
