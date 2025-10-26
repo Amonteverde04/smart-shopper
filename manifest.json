@@ -5,7 +5,10 @@
 	"description": "Prototype: Summarize and compare product pages using Chrome built-in AI.",
 	"action": {
 		"default_popup": "popup/popup.html",
-		"default_title": "Smart Shopper"
+		"default_title": "Smart Shopper",
+		"default_icon": {
+			"128": "icon.png"
+		}
 	},
 	"permissions": ["tabs", "activeTab", "scripting", "storage", "ai"],
 	"host_permissions": ["<all_urls>"]
