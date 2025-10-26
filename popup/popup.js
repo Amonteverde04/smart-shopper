@@ -3,6 +3,8 @@ const tabList = document.getElementById("tab-list");
 const loadingUI = document.getElementById("loading");
 const summaryContainer = document.getElementById("summary-comparison-container");
 const summaryContent = document.getElementById("summary-content");
+const tooltipWrapper = document.querySelector(".tool-tip-wrapper");
+const tooltipBox = document.getElementById("tooltip-box");
 
 // Load UI
 document.addEventListener("DOMContentLoaded", async () => {
@@ -35,6 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 			checkbox.type = "checkbox";
 			checkbox.checked = true;
 			checkbox.id = tab.id;
+			checkbox.name = tab.title;
 			checkbox.classList.add("checkmark");
 
 			const span = document.createElement("span");
@@ -64,7 +67,7 @@ btn.addEventListener("click", async () => {
 		const checkedTabs = [];
 		checkboxes.forEach((cb) => {
 			if (tabIds.has(cb.id) && cb.checked) {
-				checkedTabs.push(cb.id);
+				checkedTabs.push({ id: cb.id, title: cb.name });
 			}
 		});
 
@@ -93,32 +96,44 @@ btn.addEventListener("click", async () => {
 			summarizer = await Summarizer.create(options);
 		}
 
+		const tooltipList = document.getElementById("tooltip-list");
+		tooltipWrapper.style.display = "none";
+
 		const productSummaries = [];
-		for (const id of checkedTabs) {
+		for (const tab of checkedTabs) {
 			try {
 				await chrome.scripting.executeScript({
-					target: { tabId: Number(id) },
+					target: { tabId: Number(tab.id) },
 					files: ["content.js"],
 				});
 
-				const { pageText } = await chrome.tabs.sendMessage(Number(id), {
+				const { pageText } = await chrome.tabs.sendMessage(Number(tab.id), {
 					action: "extractProduct",
 				});
 
 				const summary = await summarizer.summarize(pageText);
 				productSummaries.push({
-					id: id,
+					id: tab.id,
+					title: tab.name,
 					extractedSummary: summary,
 				});
 			} catch (e) {
-				console.warn(`Could not summarize tab ${id}:`, e);
+				tooltipWrapper.style.display = "block";
+				const warningMessage = `Could not summarize tab "${tab.title}" - ${e}`;
+				console.warn(warningMessage);
+				const li = document.createElement("li");
+				li.textContent = warningMessage;
+				li.style.marginLeft = "12px";
+				li.style.marginBottom = "6px";
+				tooltipList.appendChild(li);
 			}
 		}
 
-		// We have array of product summaries. Let's do something with them on UI.
-		summaryContent.innerHTML = productSummaries
-			.map(
-				(p, i) => `
+		if (productSummaries.length > 0) {
+			// We have array of product summaries. Let's do something with them on UI.
+			summaryContent.innerHTML = productSummaries
+				.map(
+					(p, i) => `
       				<div class="summary-card">
       					<div class="summary-header">Product ${i + 1}</div>
       				  	<div class="summary-body">
@@ -136,10 +151,11 @@ btn.addEventListener("click", async () => {
         					</ul>
 					  	</div>
       				</div>`
-			)
-			.join("");
-		summaryContainer.style.display = "block";
-		scrollToId(summaryContainer.id);
+				)
+				.join("");
+			summaryContainer.style.display = "block";
+			scrollToId(summaryContainer.id);
+		}
 	} catch (err) {
 		console.error(err);
 	}
@@ -187,3 +203,11 @@ function scrollToId(id, delay = 100) {
 		}
 	}, delay);
 }
+
+tooltipWrapper.addEventListener("mouseenter", () => {
+	tooltipBox.style.display = "block";
+});
+
+tooltipWrapper.addEventListener("mouseleave", () => {
+	tooltipBox.style.display = "none";
+});

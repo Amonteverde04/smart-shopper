@@ -25,6 +25,24 @@
 			* {
 				margin: 0;
 				padding: 0;
+				/* Firefox */
+				scrollbar-width: thin;
+				scrollbar-color: var(--primary-color) var(--background);
+			}
+			::-webkit-scrollbar {
+				width: 6px;
+			}
+			::-webkit-scrollbar-track {
+				background: var(--background);
+				border-radius: 3px;
+			}
+			::-webkit-scrollbar-thumb {
+				background-color: var(--scroll-gray);
+				border-radius: 3px;
+				border: 1px solid var(--foreground);
+			}
+			::-webkit-scrollbar-thumb:hover {
+				background-color: var(--scroll-gray);
 			}
 			body {
 				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -59,25 +77,7 @@
 				border-radius: 2px;
 				overflow-x: hidden;
 				max-height: var(--table-max-height);
-				/* Firefox */
-				scrollbar-width: thin;
-				scrollbar-color: var(--primary-color) var(--background);
 				margin-top: var(--spacing-base);
-			}
-			.table-wrapper::-webkit-scrollbar {
-				width: 6px;
-			}
-			.table-wrapper::-webkit-scrollbar-track {
-				background: var(--background);
-				border-radius: 3px;
-			}
-			.table-wrapper::-webkit-scrollbar-thumb {
-				background-color: var(--scroll-gray);
-				border-radius: 3px;
-				border: 1px solid var(--foreground);
-			}
-			.table-wrapper::-webkit-scrollbar-thumb:hover {
-				background-color: var(--scroll-gray);
 			}
 			table {
 				border-collapse: collapse;
@@ -163,7 +163,7 @@
 				background-image: url("data:image/svg+xml,%3C%3Fxml version='1.0' encoding='UTF-8'%3F%3E%3Csvg width='14px' height='10px' viewBox='0 0 14 10' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3C!-- Generator: Sketch 59.1 (86144) - https://sketch.com --%3E%3Ctitle%3Echeck%3C/title%3E%3Cdesc%3ECreated with Sketch.%3C/desc%3E%3Cg id='Page-1' stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg id='ios_modification' transform='translate(-27.000000, -191.000000)' fill='%23FFFFFF' fill-rule='nonzero'%3E%3Cg id='Group-Copy' transform='translate(0.000000, 164.000000)'%3E%3Cg id='ic-check-18px' transform='translate(25.000000, 23.000000)'%3E%3Cpolygon id='check' points='6.61 11.89 3.5 8.78 2.44 9.84 6.61 14 15.56 5.05 14.5 4'%3E%3C/polygon%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 			}
 			.disabled > .checkmark-inner {
-				border-color: var(--disabled-border);
+				outline-color: var(--disabled-border);
 				cursor: not-allowed;
 			}
 			.disabled > .checkmark:checked + .checkmark-inner {
@@ -196,6 +196,45 @@
 			.summary-item {
 				margin-left: 24px;
 			}
+			.tool-tip-wrapper {
+				position: fixed;
+				display: none;
+				width: 100%;
+				z-index: 1000;
+			}
+			.warning-icon {
+				width: 24px;
+				height: 24px;
+				background-color: var(--background);
+				position: absolute;
+				right: 24px;
+				outline: 1px solid var(--disabled-bg);
+				border-radius: 4px;
+			}
+			.tooltip-box {
+				position: absolute;
+				top: 28px;
+				right: 24px;
+				max-height: 150px;
+				padding: var(--radius-base);
+				background: var(--error);
+				color: var(--background);
+				border: 1px solid var(--foreground);
+				border-radius: var(--radius-base);
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+				overflow: auto;
+				display: none;
+				/* Firefox */
+				scrollbar-color: var(--error) var(--background);
+			}
+			.tooltip-list {
+				list-style-type: disc;
+				padding-left: var(--spacing-base);
+				margin: 0;
+			}
+			.tooltip-list li {
+				margin-bottom: 6px;
+			}
 			@keyframes shimmer {
 				0% {
 					background-position: -200% 0;
@@ -212,6 +251,29 @@
 		</style>
 	</head>
 	<body>
+		<div class="tool-tip-wrapper">
+			<svg
+				class="warning-icon"
+				viewBox="0 0 32 32"
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				stroke="#dd5144">
+				<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+				<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+				<g id="SVGRepo_iconCarrier">
+					<path
+						stroke="#dd5144"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M15.12 4.623a1 1 0 011.76 0l11.32 20.9A1 1 0 0127.321 27H4.679a1 1 0 01-.88-1.476l11.322-20.9zM16 18v-6"></path>
+					<path fill="#dd5144" d="M17.5 22.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"></path>
+				</g>
+			</svg>
+			<div class="tooltip-box" id="tooltip-box">
+				<ul class="tooltip-list" id="tooltip-list"></ul>
+			</div>
+		</div>
 		<h3 id="title">Tabs</h3>
 		<div id="table-wrapper-div" class="table-wrapper">
 			<table id="tab-table">
@@ -221,7 +283,7 @@
 		<button id="summarize-button">Summarize & compare products</button>
 		<div id="loading">
 			<svg
-				class="loading-spinner"
+				class="icon loading-spinner"
 				fill="#000000"
 				viewBox="-7 0 32 32"
 				version="1.1"
