@@ -16,16 +16,16 @@
 				--scroll-gray: #888;
 				--disabled-bg: #d3d3d3;
 				--disabled-text: #777;
-				--disabled-border: #aaa;
+				--border: #aaa;
 				--font-size-base: 16px;
 				--spacing-base: 12px;
-				--radius-base: 4px;
+				--radius-base: 8px;
 				--table-max-height: 200px;
+				--shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
 			}
 			* {
 				margin: 0;
 				padding: 0;
-				/* Firefox */
 				scrollbar-width: thin;
 				scrollbar-color: var(--primary-color) var(--background);
 			}
@@ -39,7 +39,7 @@
 			::-webkit-scrollbar-thumb {
 				background-color: var(--scroll-gray);
 				border-radius: 3px;
-				border: 1px solid var(--foreground);
+				border: 1px solid var(--border);
 			}
 			::-webkit-scrollbar-thumb:hover {
 				background-color: var(--scroll-gray);
@@ -51,7 +51,19 @@
 				color: var(--foreground);
 				background: var(--background);
 			}
-			#title {
+			.logo-container {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				margin-bottom: var(--spacing-base);
+				cursor: default;
+			}
+			.logo-image {
+				height: 24px;
+				width: 24px;
+			}
+			.title {
 				font-size: var(--font-size-base);
 			}
 			button {
@@ -63,21 +75,23 @@
 				background-color: var(--primary-color);
 				color: var(--background);
 				cursor: pointer;
+				box-shadow: var(--shadow);
 			}
 			button:disabled {
 				background-color: var(--disabled-bg);
-				border-color: var(--disabled-border);
+				border-color: var(--border);
 				cursor: not-allowed;
 			}
 			#summarize-button {
 				margin-top: var(--spacing-base);
 			}
 			.table-wrapper {
-				border: 1px solid var(--foreground);
-				border-radius: 2px;
+				outline: 1px solid var(--border);
+				border-radius: 8px;
 				overflow-x: hidden;
 				max-height: var(--table-max-height);
 				margin-top: var(--spacing-base);
+				box-shadow: var(--shadow);
 			}
 			table {
 				border-collapse: collapse;
@@ -93,7 +107,6 @@
 				border-bottom: none !important;
 			}
 			thead {
-				box-shadow: inset 0 -0.5px 0 0 var(--foreground);
 				position: sticky;
 				top: 0;
 				background: var(--background);
@@ -110,7 +123,7 @@
 			}
 			td {
 				line-clamp: 2;
-				border-bottom: 1px solid var(--foreground);
+				border-bottom: 1px solid var(--border);
 				padding: 6px;
 			}
 			tr td:nth-child(1) {
@@ -130,7 +143,7 @@
 				margin-top: var(--spacing-base);
 				display: none;
 				align-items: center;
-				gap: var(--radius-base);
+				gap: 4px;
 				font-size: var(--font-size-base);
 			}
 			.loading-spinner {
@@ -154,7 +167,7 @@
 				width: 24px;
 				height: 24px;
 				border-radius: 50%;
-				outline: 1px solid var(--foreground);
+				border: 1px solid var(--border);
 				background: transparent no-repeat center;
 			}
 			.checkmark:checked + .checkmark-inner {
@@ -163,15 +176,15 @@
 				background-image: url("data:image/svg+xml,%3C%3Fxml version='1.0' encoding='UTF-8'%3F%3E%3Csvg width='14px' height='10px' viewBox='0 0 14 10' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3E%3C!-- Generator: Sketch 59.1 (86144) - https://sketch.com --%3E%3Ctitle%3Echeck%3C/title%3E%3Cdesc%3ECreated with Sketch.%3C/desc%3E%3Cg id='Page-1' stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3E%3Cg id='ios_modification' transform='translate(-27.000000, -191.000000)' fill='%23FFFFFF' fill-rule='nonzero'%3E%3Cg id='Group-Copy' transform='translate(0.000000, 164.000000)'%3E%3Cg id='ic-check-18px' transform='translate(25.000000, 23.000000)'%3E%3Cpolygon id='check' points='6.61 11.89 3.5 8.78 2.44 9.84 6.61 14 15.56 5.05 14.5 4'%3E%3C/polygon%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 			}
 			.disabled > .checkmark-inner {
-				outline-color: var(--disabled-border);
+				outline-color: var(--border);
 				cursor: not-allowed;
 			}
 			.disabled > .checkmark:checked + .checkmark-inner {
 				background-color: var(--disabled-bg);
-				border-color: var(--disabled-border);
+				border-color: var(--border);
 				cursor: not-allowed;
 			}
-			#summary-comparison-container {
+			#summary-container {
 				display: none;
 				margin-top: var(--spacing-base);
 			}
@@ -181,11 +194,25 @@
 				flex-direction: column;
 				gap: var(--spacing-base);
 			}
-			.summary-card {
+			#comparison-container {
+				display: none;
+				margin-top: var(--spacing-base);
+			}
+			#comparison-content {
+				margin-top: var(--spacing-base);
+				line-height: 1.6;
+				color: var(--foreground, #1f1f1f);
+			}
+			#comparison-content ul {
+				margin-left: 36px;
+				list-style: disc;
+			}
+			.card {
 				background: var(--background);
-				border: 1px solid var(--disabled-border);
+				border: 1px solid var(--border);
 				border-radius: 8px;
 				padding: var(--spacing-base);
+				box-shadow: var(--shadow);
 			}
 			.summary-header {
 				font-weight: 600;
@@ -198,34 +225,46 @@
 			}
 			.tool-tip-wrapper {
 				position: fixed;
-				display: none;
 				width: 100%;
 				z-index: 1000;
+				transition: opacity 0.3s;
 			}
-			.warning-icon {
+			.tool-tip-warning {
+				display: none;
+			}
+			.tool-tip-icon {
 				width: 24px;
 				height: 24px;
 				background-color: var(--background);
 				position: absolute;
+				outline: 1px solid var(--border);
+				border-radius: var(--radius-base);
+				box-shadow: var(--shadow);
+			}
+			.tool-tip-warning-icon {
 				right: 24px;
-				outline: 1px solid var(--disabled-bg);
-				border-radius: 4px;
 			}
 			.tooltip-box {
 				position: absolute;
 				top: 24px;
-				right: 24px;
 				max-height: 150px;
-				padding: var(--radius-base);
-				background: var(--error);
-				color: var(--background);
-				border: 1px solid var(--foreground);
+				padding: 4px;
+				margin-top: 6px;
+				border: 1px solid var(--border);
 				border-radius: var(--radius-base);
-				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+				box-shadow: var(--shadow);
 				overflow: auto;
 				display: none;
-				/* Firefox */
 				scrollbar-color: var(--error) var(--background);
+			}
+			#tooltip-box-warning {
+				right: 24px;
+				background: var(--error);
+				color: var(--background);
+			}
+			#tooltip-box-info {
+				background: var(--background);
+				color: var(--foreground);
 			}
 			.tooltip-list {
 				list-style-type: disc;
@@ -233,7 +272,19 @@
 				margin: 0;
 			}
 			.tooltip-list li {
+				margin-left: 12px;
 				margin-bottom: 6px;
+			}
+			.instructions h3 {
+				margin-bottom: var(--spacing-base);
+			}
+			.instructions li {
+				margin-left: 24px;
+				margin-bottom: 6px;
+			}
+			.hidden {
+				opacity: 0;
+				pointer-events: none;
 			}
 			@keyframes shimmer {
 				0% {
@@ -251,9 +302,9 @@
 		</style>
 	</head>
 	<body>
-		<div class="tool-tip-wrapper">
+		<div class="tool-tip-wrapper tool-tip-warning">
 			<svg
-				class="warning-icon"
+				class="tool-tip-icon tool-tip-warning-icon"
 				viewBox="0 0 32 32"
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
@@ -270,17 +321,60 @@
 					<path fill="#dd5144" d="M17.5 22.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"></path>
 				</g>
 			</svg>
-			<div class="tooltip-box" id="tooltip-box">
+			<div class="tooltip-box" id="tooltip-box-warning">
 				<ul class="tooltip-list" id="tooltip-list"></ul>
 			</div>
 		</div>
-		<h3 id="title">Tabs</h3>
+		<div class="tool-tip-wrapper tool-tip-info">
+			<svg
+				class="tool-tip-icon tool-tip-info-icon"
+				viewBox="0 0 24 24"
+				fill="none"
+				xmlns="http://www.w3.org/2000/svg"
+				stroke="#4c8bf5">
+				<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+				<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+				<g id="SVGRepo_iconCarrier">
+					<path
+						d="M12 19H12.01M8.21704 7.69689C8.75753 6.12753 10.2471 5 12 5C14.2091 5 16 6.79086 16 9C16 10.6565 14.9931 12.0778 13.558 12.6852C12.8172 12.9988 12.4468 13.1556 12.3172 13.2767C12.1629 13.4209 12.1336 13.4651 12.061 13.6634C12 13.8299 12 14.0866 12 14.6L12 16"
+						stroke="#4c8bf5"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"></path>
+				</g>
+			</svg>
+			<div class="tooltip-box" id="tooltip-box-info">
+				<ul class="tooltip-list instructions" id="tooltip-list">
+					<h3>How to use:</h3>
+					<li>Open the products you want to compare, each in its own browser tab.</li>
+					<li>Deselect any tabs you don&apos;t want included in the comparison.</li>
+					<li>Click “Summarize & Compare Tabs.”</li>
+					<li>
+						Wait a few moments, your summaries and comparison results will appear
+						automatically.
+					</li>
+				</ul>
+			</div>
+		</div>
+		<div class="logo-container">
+			<img class="logo-image" src="/icon.png" />
+			<h1>Smart Shopper</h1>
+		</div>
+		<h3 class="title">Tabs</h3>
 		<div id="table-wrapper-div" class="table-wrapper">
 			<table id="tab-table">
 				<tbody id="tab-list"></tbody>
 			</table>
 		</div>
 		<button id="summarize-button">Summarize & compare products</button>
+		<div id="summary-container">
+			<h3 class="title">Summary</h3>
+			<div id="summary-content"></div>
+		</div>
+		<div id="comparison-container">
+			<h3 class="title">Comparison</h3>
+			<div id="comparison-content" class="card"></div>
+		</div>
 		<div id="loading">
 			<svg
 				class="icon loading-spinner"
@@ -296,12 +390,9 @@
 						d="M2.080 14.040l4-1.040c0.44-0.12 0.72-0.56 0.6-1.040-0.12-0.44-0.56-0.72-1.040-0.6l-2.080 0.56c0.68-0.88 1.56-1.6 2.64-2.080 1.64-0.72 3.44-0.76 5.12-0.12 1.64 0.64 2.96 1.92 3.68 3.52 0.2 0.44 0.68 0.6 1.12 0.44 0.44-0.2 0.6-0.68 0.44-1.12-0.88-2.040-2.52-3.6-4.6-4.44-2.080-0.8-4.36-0.76-6.4 0.12-1.36 0.6-2.48 1.52-3.36 2.68l-0.52-1.96c-0.12-0.44-0.56-0.72-1.040-0.6-0.44 0.12-0.72 0.56-0.6 1.040l1.040 4c0.12 0.56 0.4 0.8 1 0.64zM17.72 22.52l-1.040-3.96c0 0-0.16-0.8-0.96-0.6v0l-4 1.040c-0.44 0.12-0.72 0.56-0.6 1.040 0.12 0.44 0.56 0.72 1.040 0.6l2.080-0.56c-1.76 2.32-4.88 3.28-7.72 2.16-1.64-0.64-2.96-1.92-3.68-3.52-0.2-0.44-0.68-0.6-1.12-0.44-0.44 0.2-0.6 0.68-0.44 1.12 0.88 2.040 2.52 3.6 4.6 4.44 1 0.4 2 0.56 3.040 0.56 2.64 0 5.12-1.24 6.72-3.4l0.52 1.96c0.080 0.36 0.44 0.64 0.8 0.64 0.080 0 0.16 0 0.2-0.040 0.4-0.16 0.68-0.6 0.56-1.040z"></path>
 				</g>
 			</svg>
-			Summarizing...
+			<span id="loading-text">Summarizing...</span>
 		</div>
-		<div id="summary-comparison-container">
-			<h3 id="title">Summary</h3>
-			<div id="summary-content"></div>
-		</div>
+		<script src="marked.min.js"></script>
 		<script src="popup.js"></script>
 	</body>
 </html>
