@@ -20,3 +20,6 @@ Your AI-powered shopping assistant that instantly compares products side-by-side
 - [2024 Nissan Z NISMO in Wake Forest, NC | Nissan Z | Crossroads Nissan Wake Forest](https://www.crossroadsnissanwf.com/new-Wake+Forest-2024-Nissan-Z-NISMO-JN1BZ4CH7RM362973)
 - [2025 Ford Bronco Sport Outer Banks in Wake Forest, NC | Raleigh Ford Bronco Sport | Crossroads Ford Wake Forest](https://www.crossroadsfordwakeforest.com/new-Wake+Forest-2025-Ford-Bronco+Sport-Outer+Banks-3FMCR9CN1SRF39126)
 - [Used 2025 Acura MDX For Sale at Leith Toyota | VIN: 5J8YD9H4XSL002635](https://www.leithtoyota.com/used/Acura/2025-Acura-MDX-eb0b2978ac181ac43f14aa24cbd2d6b3.htm)
+
+### Demo
+- [Smart Shopper - Google Chrome Built-in AI Challenge 2025](https://youtu.be/JLfvk7UQFM4)
