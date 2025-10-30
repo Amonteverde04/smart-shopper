@@ -17,6 +17,6 @@ Your AI-powered shopping assistant that instantly compares products side-by-side
 - [Camera 3 - # Canon EOS R100 RF-S18-45mm F4.5-6.3 IS STM Lens Kit: 24.1MP Mirrorless, Wi-Fi](https://www.target.com/p/canon-eos-r100-rf-s18-45mm-f4-5-6-3-is-stm-lens-kit/-/A-89177813#lnk=sametab)
 - [Camera 4 - # Canon PowerShot G7 X Mark III 20.1 Megapixel Digital Camera - Black: Wi-Fi, Self-Timer, 4K Video](https://www.target.com/p/canon-powershot-g7-x-mark-iii-20-1-megapixel-digital-camera-black/-/A-91467769#lnk=sametab)
 ### Vehicles
-- [New 2025 Ram 1500 For Sale at Westgate Dodge Ram Wake Forest | VIN: 1C6RRFFG1SN535971](https://www.westgatedodgeram.com/exotic-new/Ram/2025-Ram-1500-0a97f1ddac180b1b2feeaf4ea139e28d.htm)
+- [2024 Nissan Z NISMO in Wake Forest, NC | Nissan Z | Crossroads Nissan Wake Forest](https://www.crossroadsnissanwf.com/new-Wake+Forest-2024-Nissan-Z-NISMO-JN1BZ4CH7RM362973)
 - [2025 Ford Bronco Sport Outer Banks in Wake Forest, NC | Raleigh Ford Bronco Sport | Crossroads Ford Wake Forest](https://www.crossroadsfordwakeforest.com/new-Wake+Forest-2025-Ford-Bronco+Sport-Outer+Banks-3FMCR9CN1SRF39126)
 - [Used 2025 Acura MDX For Sale at Leith Toyota | VIN: 5J8YD9H4XSL002635](https://www.leithtoyota.com/used/Acura/2025-Acura-MDX-eb0b2978ac181ac43f14aa24cbd2d6b3.htm)
