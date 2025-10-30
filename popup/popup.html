@@ -217,6 +217,81 @@
 			}
 			.summary-header {
 				font-weight: 600;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			.product-header-top {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+			.value-score-badge {
+				padding: 4px 12px;
+				border-radius: 12px;
+				font-size: 12px;
+				font-weight: 600;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.value-score-badge.score-excellent {
+				background-color: #1da462;
+				color: white;
+			}
+			.value-score-badge.score-good {
+				background-color: #4c8bf5;
+				color: white;
+			}
+			.value-score-badge.score-fair {
+				background-color: #ffcd46;
+				color: #1f1f1f;
+			}
+			.value-score-badge.score-poor {
+				background-color: #dd5144;
+				color: white;
+			}
+			.value-score-label {
+				font-size: 11px;
+				opacity: 0.9;
+			}
+			.value-score-value {
+				font-size: 14px;
+				font-weight: 700;
+			}
+			.price-info {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				flex-wrap: wrap;
+			}
+			.price-value {
+				font-size: 18px;
+				font-weight: 700;
+				color: var(--primary-color);
+			}
+			.price-alert {
+				padding: 4px 8px;
+				border-radius: 6px;
+				font-size: 12px;
+				font-weight: 600;
+			}
+			.price-alert.drop {
+				background-color: #e8f5e9;
+				color: #1da462;
+			}
+			.price-alert.increase {
+				background-color: #fff3e0;
+				color: #ff9800;
+			}
+			.rating-info {
+				font-size: 14px;
+				color: #666;
+				display: flex;
+				align-items: center;
+				gap: 4px;
 			}
 			.summary-body {
 				margin-top: 6px;
@@ -300,6 +375,51 @@
 				to {
 					transform: rotate(360deg);
 				}
+			}
+			.export-buttons {
+				display: flex;
+				gap: 8px;
+				margin-top: var(--spacing-base);
+				flex-wrap: wrap;
+			}
+			.export-btn {
+				flex: 1;
+				min-width: 120px;
+				padding: 8px 12px;
+				font-size: 13px;
+				background-color: var(--background);
+				border: 1px solid var(--border);
+				color: var(--foreground);
+				cursor: pointer;
+				border-radius: var(--radius-base);
+				transition: all 0.2s;
+			}
+			.export-btn:hover:not(:disabled) {
+				background-color: var(--primary-color);
+				color: white;
+				border-color: var(--primary-color);
+			}
+			.export-btn:active:not(:disabled) {
+				transform: scale(0.98);
+			}
+			.export-notification {
+				position: fixed;
+				bottom: 20px;
+				left: 50%;
+				transform: translateX(-50%) translateY(100px);
+				background-color: var(--success);
+				color: white;
+				padding: 12px 24px;
+				border-radius: var(--radius-base);
+				box-shadow: var(--shadow);
+				z-index: 10000;
+				opacity: 0;
+				transition: all 0.3s ease;
+				font-weight: 600;
+			}
+			.export-notification.show {
+				opacity: 1;
+				transform: translateX(-50%) translateY(0);
 			}
 		</style>
 	</head>

@@ -2,7 +2,8 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === "extractProduct") {
 		const pageText = extractSmartContent();
-		sendResponse({ pageText });
+		const productData = extractProductData();
+		sendResponse({ pageText, productData });
 		return true;
 	}
 });
@@ -401,6 +402,255 @@ function formatExtractedContent(sections) {
 	});
 	
 	return formatted.join('\n\n---\n\n');
+}
+
+/**
+ * Extract structured product data for price tracking and value scoring
+ */
+function extractProductData() {
+	const data = {
+		url: window.location.href,
+		title: extractTitle(),
+		price: extractPrice(),
+		rating: extractRating(),
+		reviewCount: extractReviewCount(),
+		currency: extractCurrency(),
+		timestamp: Date.now()
+	};
+	return data;
+}
+
+/**
+ * Extract product title
+ */
+function extractTitle() {
+	// Try JSON-LD first
+	const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+	for (const script of jsonLdScripts) {
+		try {
+			const data = JSON.parse(script.textContent);
+			const product = Array.isArray(data) ? data.find(d => d['@type'] === 'Product') : data;
+			if (product && product['@type'] === 'Product' && product.name) {
+				return product.name;
+			}
+		} catch (e) {
+			// Ignore
+		}
+	}
+
+	// Try meta tags
+	const ogTitle = document.querySelector('meta[property="og:title"]');
+	if (ogTitle) return ogTitle.getAttribute('content');
+
+	// Try common title selectors
+	const titleSelectors = [
+		'h1[class*="title"]', 'h1[class*="product"]', '#productTitle',
+		'.product-title', '.pdp-product-name', 'h1'
+	];
+	for (const selector of titleSelectors) {
+		const el = document.querySelector(selector);
+		if (el && el.innerText.trim()) {
+			return el.innerText.trim();
+		}
+	}
+
+	return document.title;
+}
+
+/**
+ * Extract product price
+ */
+function extractPrice() {
+	// Try JSON-LD first
+	const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+	for (const script of jsonLdScripts) {
+		try {
+			const data = JSON.parse(script.textContent);
+			const product = Array.isArray(data) ? data.find(d => d['@type'] === 'Product') : data;
+			if (product && product['@type'] === 'Product' && product.offers) {
+				const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
+				if (offers && offers.price) {
+					return parseFloat(offers.price);
+				}
+			}
+		} catch (e) {
+			// Ignore
+		}
+	}
+
+	// Try common price selectors
+	const priceSelectors = [
+		'[data-testid*="price"]', '[data-cy*="price"]',
+		'.price', '.cost', '.amount', '[class*="price"]',
+		'.a-price-whole'
+	];
+	
+	for (const selector of priceSelectors) {
+		const elements = document.querySelectorAll(selector);
+		for (const el of elements) {
+			const text = el.innerText || el.textContent || '';
+			const price = parsePriceFromText(text);
+			if (price) return price;
+		}
+	}
+
+	// Search in body text
+	const bodyText = document.body.innerText;
+	const price = parsePriceFromText(bodyText);
+	return price || null;
+}
+
+/**
+ * Parse price from text string
+ */
+function parsePriceFromText(text) {
+	// Match common price patterns: $123.45, €123.45, £123, 123.45, etc.
+	const patterns = [
+		/\$\s*(\d{1,3}(?:[,\.]\d{3})*(?:\.\d{2})?)/,  // $123.45 or $1,234.56
+		/(\d{1,3}(?:[,\.]\d{3})*(?:\.\d{2})?)\s*[€£¥₹]/,  // 123.45€
+		/(?:price|cost|pay)[:\s]*\$?\s*(\d{1,3}(?:[,\.]\d{3})*(?:\.\d{2})?)/i,
+	];
+
+	for (const pattern of patterns) {
+		const match = text.match(pattern);
+		if (match) {
+			const priceStr = match[1].replace(/,/g, '');
+			const price = parseFloat(priceStr);
+			if (!isNaN(price) && price > 0 && price < 10000000) {
+				return price;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Extract currency
+ */
+function extractCurrency() {
+	const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+	for (const script of jsonLdScripts) {
+		try {
+			const data = JSON.parse(script.textContent);
+			const product = Array.isArray(data) ? data.find(d => d['@type'] === 'Product') : data;
+			if (product && product['@type'] === 'Product' && product.offers) {
+				const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
+				if (offers && offers.priceCurrency) {
+					return offers.priceCurrency;
+				}
+			}
+		} catch (e) {
+			// Ignore
+		}
+	}
+
+	// Try to detect from page text
+	const bodyText = document.body.innerText;
+	if (/\$/.test(bodyText)) return 'USD';
+	if (/€/.test(bodyText)) return 'EUR';
+	if (/£/.test(bodyText)) return 'GBP';
+	if (/¥/.test(bodyText)) return 'JPY';
+	if (/₹/.test(bodyText)) return 'INR';
+
+	return 'USD'; // Default
+}
+
+/**
+ * Extract product rating
+ */
+function extractRating() {
+	// Try JSON-LD
+	const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+	for (const script of jsonLdScripts) {
+		try {
+			const data = JSON.parse(script.textContent);
+			const product = Array.isArray(data) ? data.find(d => d['@type'] === 'Product') : data;
+			if (product && product['@type'] === 'Product' && product.aggregateRating) {
+				const rating = product.aggregateRating.ratingValue;
+				if (rating) return parseFloat(rating);
+			}
+		} catch (e) {
+			// Ignore
+		}
+	}
+
+	// Try common rating selectors
+	const ratingSelectors = [
+		'[data-testid*="rating"]', '[class*="rating"]',
+		'.star-rating', '[aria-label*="rating"]'
+	];
+	
+	for (const selector of ratingSelectors) {
+		const el = document.querySelector(selector);
+		if (el) {
+			const text = el.innerText || el.getAttribute('aria-label') || '';
+			const rating = parseRatingFromText(text);
+			if (rating) return rating;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Extract review count
+ */
+function extractReviewCount() {
+	// Try JSON-LD
+	const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+	for (const script of jsonLdScripts) {
+		try {
+			const data = JSON.parse(script.textContent);
+			const product = Array.isArray(data) ? data.find(d => d['@type'] === 'Product') : data;
+			if (product && product['@type'] === 'Product' && product.aggregateRating) {
+				const count = product.aggregateRating.reviewCount;
+				if (count) return parseInt(count);
+			}
+		} catch (e) {
+			// Ignore
+		}
+	}
+
+	// Try to find review count in text
+	const bodyText = document.body.innerText;
+	const reviewPatterns = [
+		/(\d+)\s*(?:reviews?|ratings?)/i,
+		/\((\d+)\s*reviews?\)/i
+	];
+	
+	for (const pattern of reviewPatterns) {
+		const match = bodyText.match(pattern);
+		if (match) {
+			const count = parseInt(match[1]);
+			if (count > 0) return count;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Parse rating from text (e.g., "4.5 out of 5", "4.5 stars", "4.5/5")
+ */
+function parseRatingFromText(text) {
+	const patterns = [
+		/(\d+\.?\d*)\s*(?:out\s*of|\/)\s*5/i,
+		/(\d+\.?\d*)\s*stars?/i,
+		/rating[:\s]*(\d+\.?\d*)/i
+	];
+
+	for (const pattern of patterns) {
+		const match = text.match(pattern);
+		if (match) {
+			const rating = parseFloat(match[1]);
+			if (!isNaN(rating) && rating >= 0 && rating <= 5) {
+				return rating;
+			}
+		}
+	}
+
+	return null;
 }
 
 /**
