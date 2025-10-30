@@ -19,4 +19,4 @@ Your AI-powered shopping assistant that instantly compares products side-by-side
 ### Vehicles
 - [New 2025 Ram 1500 For Sale at Westgate Dodge Ram Wake Forest | VIN: 1C6RRFFG1SN535971](https://www.westgatedodgeram.com/exotic-new/Ram/2025-Ram-1500-0a97f1ddac180b1b2feeaf4ea139e28d.htm)
 - [2025 Ford Bronco Sport Outer Banks in Wake Forest, NC | Raleigh Ford Bronco Sport | Crossroads Ford Wake Forest](https://www.crossroadsfordwakeforest.com/new-Wake+Forest-2025-Ford-Bronco+Sport-Outer+Banks-3FMCR9CN1SRF39126)
-- [New 2026 Toyota Tundra For Sale at Leith Toyota | VIN: 5TFWA5EC2TX050448](https://www.leithtoyota.com/new/Toyota/2026-Toyota-Tundra-7b539063ac18332098d40542b4eee821.htm)
+- [Used 2025 Acura MDX For Sale at Leith Toyota | VIN: 5J8YD9H4XSL002635](https://www.leithtoyota.com/used/Acura/2025-Acura-MDX-eb0b2978ac181ac43f14aa24cbd2d6b3.htm)
