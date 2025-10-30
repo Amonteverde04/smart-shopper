@@ -1,5 +1,5 @@
 # Smart Shopper
-Your AI-powered shopping assistant that instantly compares products side-by-side. All privately, right in your browser.
+Your AI-powered shopping assistant that instantly compares products side-by-side. All privately, right in your browser. Built for the Google Chrome Built-in AI Challenge 2025.
 
 ## Development environment setup
 1. Clone repo.
