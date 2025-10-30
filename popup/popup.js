@@ -233,8 +233,11 @@ async function createLanguageModel() {
 async function summarizeTabs(tabs, summarizer, tooltipList) {
 	const productSummaries = [];
 
-	for (const tab of tabs) {
+	for (let i = 0; i < tabs.length; i++) {
+		const tab = tabs[i];
 		try {
+			updateLoadingText(`Processing product ${i + 1} of ${tabs.length}...`);
+			
 			await chrome.scripting.executeScript({
 				target: { tabId: Number(tab.id) },
 				files: ["content.js"],
@@ -242,13 +245,20 @@ async function summarizeTabs(tabs, summarizer, tooltipList) {
 			const { pageText, productData } = await chrome.tabs.sendMessage(Number(tab.id), {
 				action: "extractProduct",
 			});
+			
 			let summary;
 			if (summarizer) {
 				try {
-					summary = await summarizer.summarize(pageText);
+					// Try streaming summarization
+					summary = await streamSummarization(summarizer, pageText, i, tabs.length);
 				} catch (summaryError) {
 					console.error('Summarization error:', summaryError);
-					summary = `Error summarizing: ${summaryError.message}`;
+					// Fallback to non-streaming
+					try {
+						summary = await summarizer.summarize(pageText);
+					} catch (fallbackError) {
+						summary = `Error summarizing: ${summaryError.message}`;
+					}
 				}
 			} else {
 				summary = "Summarizer unavailable";
@@ -266,6 +276,11 @@ async function summarizeTabs(tabs, summarizer, tooltipList) {
 				valueScore: valueScore,
 				priceAlert: priceAlert
 			});
+			
+			// Update display as we go
+			if (productSummaries.length > 0) {
+				displaySummaries(productSummaries);
+			}
 		} catch (e) {
 			// Add warnings to warning tooltip
 			tooltipWarning.style.display = "block";
@@ -276,6 +291,50 @@ async function summarizeTabs(tabs, summarizer, tooltipList) {
 	}
 
 	return productSummaries;
+}
+
+async function streamSummarization(summarizer, pageText, index, total) {
+	let fullSummary = '';
+	
+	try {
+		// Chrome's Summarizer.summarize() may support streaming
+		const response = await summarizer.summarize(pageText, { stream: true });
+		
+		// Check if response is a stream
+		if (response && typeof response.getReader === 'function') {
+			// It's a ReadableStream
+			const reader = response.getReader();
+			const decoder = new TextDecoder();
+			
+			while (true) {
+				const { done, value } = await reader.read();
+				
+				if (done) break;
+				
+				const chunk = decoder.decode(value, { stream: true });
+				fullSummary += chunk;
+				
+				updateLoadingText(`Summarizing product ${index + 1}/${total}... (${fullSummary.length} chars)`);
+			}
+			
+			return fullSummary;
+		} else if (response && typeof response.then === 'function') {
+			// It's a promise, await it
+			return await response;
+		} else {
+			// Direct response
+			return response;
+		}
+	} catch (error) {
+		// If streaming fails, try regular summarize
+		console.log('Streaming not available, using regular summarize:', error);
+		try {
+			const result = await summarizer.summarize(pageText);
+			return result;
+		} catch (fallbackError) {
+			throw fallbackError;
+		}
+	}
 }
 
 function displaySummaries(summaries) {
@@ -340,10 +399,84 @@ async function compareProducts(productSummaries, languageModelSession) {
 		}
 
 		const productSummariesJson = JSON.stringify(productSummaries);
-		return await languageModelSession.prompt(`Compare these products. Products:\n\n${productSummariesJson}`);
+		const prompt = `Compare these products. Products:\n\n${productSummariesJson}`;
+		
+		// Stream the comparison
+		return await streamComparison(languageModelSession, prompt);
 	} catch (error) {
 		console.error('Failed to compare products:', error);
 		throw error;
+	}
+}
+
+async function streamComparison(session, prompt) {
+	let fullComparison = '';
+	
+	try {
+		// Try promptStreaming() if available (Chrome's streaming API)
+		if (session.promptStreaming) {
+			const stream = session.promptStreaming(prompt);
+			
+			// Show container immediately
+			comparisonContainer.style.display = "block";
+			comparisonContent.innerHTML = '<p>Comparing products...</p>';
+			
+			// Handle async iterator
+			for await (const chunk of stream) {
+				fullComparison += chunk;
+				
+				// Update UI in real-time as comparison streams
+				const comparisonHTML = marked.parse(fullComparison + '<span class="streaming-cursor">▋</span>');
+				comparisonContent.innerHTML = comparisonHTML;
+				
+				updateLoadingText(`Comparing... (${fullComparison.length} chars)`);
+			}
+			
+			// Final render without cursor
+			const comparisonHTML = marked.parse(fullComparison);
+			comparisonContent.innerHTML = comparisonHTML;
+			return fullComparison;
+		}
+		
+		// Fallback: Try ReadableStream approach
+		const response = await session.prompt(prompt, { stream: true });
+		
+		// Check if response is a stream
+		if (response && typeof response.getReader === 'function') {
+			const reader = response.getReader();
+			const decoder = new TextDecoder();
+			
+			comparisonContainer.style.display = "block";
+			comparisonContent.innerHTML = '<p>Comparing products...</p>';
+			
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				
+				const chunk = decoder.decode(value, { stream: true });
+				fullComparison += chunk;
+				
+				const comparisonHTML = marked.parse(fullComparison + '<span class="streaming-cursor">▋</span>');
+				comparisonContent.innerHTML = comparisonHTML;
+				updateLoadingText(`Comparing... (${fullComparison.length} chars)`);
+			}
+			
+			const comparisonHTML = marked.parse(fullComparison);
+			comparisonContent.innerHTML = comparisonHTML;
+			return fullComparison;
+		}
+		
+		// If no streaming support, use regular prompt
+		return await (response && typeof response.then === 'function' ? response : session.prompt(prompt));
+	} catch (error) {
+		// Final fallback: regular prompt
+		console.log('Streaming not available, using regular prompt:', error);
+		try {
+			const result = await session.prompt(prompt);
+			return result;
+		} catch (fallbackError) {
+			throw fallbackError;
+		}
 	}
 }
 
@@ -354,6 +487,7 @@ function displayComparison(result, productSummaries) {
 			<button id="export-text-btn" class="export-btn">📋 Copy as Text</button>
 			<button id="export-json-btn" class="export-btn">💾 Export JSON</button>
 			<button id="share-comparison-btn" class="export-btn">🔗 Share</button>
+			<button id="generate-webpage-btn" class="export-btn">🌐 Generate Webpage</button>
 		</div>
 	`;
 	
@@ -458,6 +592,7 @@ function setupExportButtons(comparisonText, productSummaries) {
 	const exportTextBtn = document.getElementById("export-text-btn");
 	const exportJsonBtn = document.getElementById("export-json-btn");
 	const shareBtn = document.getElementById("share-comparison-btn");
+	const generateWebpageBtn = document.getElementById("generate-webpage-btn");
 	
 	if (exportTextBtn) {
 		exportTextBtn.addEventListener("click", () => {
@@ -489,6 +624,18 @@ function setupExportButtons(comparisonText, productSummaries) {
 				return;
 			}
 			shareComparison(currentComparisonResult, currentProductSummaries);
+		});
+	}
+	
+	if (generateWebpageBtn) {
+		generateWebpageBtn.addEventListener("click", async () => {
+			if (!currentProductSummaries || !currentComparisonResult) {
+				console.error("Product summaries or comparison result not available");
+				showExportNotification("❌ Data not available for webpage generation");
+				return;
+			}
+			showExportNotification("🎨 Generating custom webpage...");
+			await generateComparisonWebpage(currentComparisonResult, currentProductSummaries);
 		});
 	}
 }
@@ -610,6 +757,406 @@ function showExportNotification(message) {
 		notification.classList.remove('show');
 		setTimeout(() => notification.remove(), 300);
 	}, 2000);
+}
+
+/* Streaming helper functions */
+async function streamWebpageGeneration(session, prompt) {
+	let fullHTML = '';
+	
+	try {
+		// Try promptStreaming() if available (Chrome's streaming API)
+		if (session.promptStreaming) {
+			const stream = session.promptStreaming(prompt);
+			
+			// Handle async iterator
+			for await (const chunk of stream) {
+				fullHTML += chunk;
+				updateLoadingText(`Generating HTML... (${fullHTML.length} chars)`);
+			}
+			
+			return fullHTML;
+		}
+		
+		// Fallback: Try ReadableStream approach
+		const response = await session.prompt(prompt, { stream: true });
+		
+		if (response && typeof response.getReader === 'function') {
+			const reader = response.getReader();
+			const decoder = new TextDecoder();
+			
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				
+				const chunk = decoder.decode(value, { stream: true });
+				fullHTML += chunk;
+				updateLoadingText(`Generating HTML... (${fullHTML.length} chars)`);
+			}
+			
+			return fullHTML;
+		}
+		
+		// If no streaming support, use regular prompt
+		return await (response && typeof response.then === 'function' ? response : session.prompt(prompt));
+	} catch (error) {
+		// Final fallback: regular prompt
+		console.log('Streaming not available, using regular prompt:', error);
+		try {
+			const result = await session.prompt(prompt);
+			return result;
+		} catch (fallbackError) {
+			throw fallbackError;
+		}
+	}
+}
+
+/* Feature 4: Generate Custom Comparison Webpage with LLM */
+async function generateComparisonWebpage(comparisonText, productSummaries) {
+	try {
+		updateLoadingText("Designing custom webpage...");
+		
+		// Check if language model is available
+		if ((await LanguageModel.availability()) === "unavailable") {
+			throw new Error("Language model not available for webpage generation");
+		}
+
+		// Prepare product data for the LLM
+		const productData = productSummaries.map((p, i) => ({
+			number: i + 1,
+			title: p.title || `Product ${i + 1}`,
+			summary: p.extractedSummary,
+			price: p.productData?.price ? formatPrice(p.productData.price, p.productData.currency) : null,
+			rating: p.productData?.rating ? `${p.productData.rating.toFixed(1)}/5` : null,
+			reviewCount: p.productData?.reviewCount ? formatReviewCount(p.productData.reviewCount) : null,
+			valueScore: p.valueScore !== null ? p.valueScore.toFixed(1) : null,
+			priceAlert: p.priceAlert?.message || null
+		}));
+
+		const prompt = `Create a beautiful, modern, responsive HTML webpage that displays a product comparison. 
+
+REQUIREMENTS:
+1. Create a complete, standalone HTML document (with <!DOCTYPE html>, <html>, <head>, <body> tags)
+2. Include all CSS inline in a <style> tag in the <head>
+3. Make it visually appealing with modern design (gradients, shadows, smooth animations)
+4. Use a professional color scheme (blues, greens, grays)
+5. Make it responsive for different screen sizes
+6. Include the following sections:
+   - Header with title "Product Comparison" and generation date
+   - Product cards showing each product with:
+     * Product title
+     * Price (if available)
+     * Rating and review count (if available)
+     * Value score badge (if available, color-coded: green for 8+, blue for 6-8, yellow for 4-6, red for <4)
+     * Price alerts (if available, styled appropriately)
+     * Summary text
+   - Comparison section with the AI-generated comparison text
+7. Use modern CSS features (flexbox, grid, animations, gradients)
+8. Make product cards visually distinct with hover effects
+9. Format the comparison text nicely with proper typography
+
+PRODUCT DATA:
+${JSON.stringify(productData, null, 2)}
+
+COMPARISON TEXT:
+${comparisonText}
+
+Generate ONLY the complete HTML code, starting with <!DOCTYPE html>. Do not include any markdown formatting or code blocks. Return pure HTML.`;
+
+		// Get or create a language model session
+		const initialPrompts = [
+			{
+				role: "system",
+				content: `You are an expert web designer specializing in creating beautiful, modern, responsive HTML webpages. You generate complete, standalone HTML documents with inline CSS that are production-ready and visually stunning.`
+			}
+		];
+
+		const options = { initialPrompts: initialPrompts };
+		
+		// Check availability and add monitor if needed
+		const availability = await LanguageModel.availability();
+		if (availability === "downloading" || availability === "downloadable") {
+			options.monitor = (m) => {
+				m.addEventListener("downloadprogress", (e) => {
+					const progress = Math.round(e.loaded * 100);
+					updateLoadingText(`Downloading model... ${progress}%`);
+				});
+			};
+		}
+
+		// Ensure user activation
+		const session = await LanguageModel.create(options);
+		updateLoadingText("Generating HTML...");
+		
+		// Stream the HTML generation
+		const htmlContent = await streamWebpageGeneration(session, prompt);
+		await openComparisonWebpage(htmlContent, productSummaries);
+	} catch (error) {
+		console.error('Failed to generate webpage:', error);
+		showExportNotification(`❌ Error: ${error.message}`);
+		updateLoadingText("Error occurred");
+	}
+}
+
+async function openComparisonWebpage(htmlContent, productSummaries) {
+	try {
+		updateLoadingText("Opening webpage...");
+		
+		// Clean up the HTML content (remove markdown code blocks if present)
+		let cleanedHTML = htmlContent.trim();
+		
+		// Remove markdown code block wrappers if present
+		cleanedHTML = cleanedHTML.replace(/^```html\s*/i, '');
+		cleanedHTML = cleanedHTML.replace(/^```\s*/i, '');
+		cleanedHTML = cleanedHTML.replace(/\s*```$/i, '');
+		cleanedHTML = cleanedHTML.trim();
+		
+		// Validate that it starts with HTML
+		if (!cleanedHTML.toLowerCase().startsWith('<!doctype html') && 
+			!cleanedHTML.toLowerCase().startsWith('<html')) {
+			// If LLM didn't generate proper HTML, create a fallback template
+			cleanedHTML = createFallbackWebpage(productSummaries);
+		}
+		
+		// Create a data URL
+		const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(cleanedHTML);
+		
+		// Get the current window to open tab in the same window
+		try {
+			const currentWindow = await chrome.windows.getCurrent();
+			
+			// Try to open in the current window first
+			const tab = await chrome.tabs.create({
+				url: dataUrl,
+				active: true,
+				windowId: currentWindow.id
+			});
+			
+			showExportNotification("✅ Custom webpage opened!");
+			updateLoadingText("Webpage generated");
+		} catch (tabError) {
+			// If that fails, try opening a new window
+			console.log("Failed to open in current window, trying new window:", tabError);
+			
+			const window = await chrome.windows.create({
+				url: dataUrl,
+				type: 'normal',
+				focused: true,
+				width: 1200,
+				height: 800
+			});
+			
+			showExportNotification("✅ Custom webpage opened in new window!");
+			updateLoadingText("Webpage generated");
+		}
+	} catch (error) {
+		console.error('Failed to open webpage:', error);
+		
+		// Last resort: try using window.open() as fallback
+		try {
+			// Ensure we have cleanedHTML
+			let cleanedHTML = htmlContent.trim();
+			cleanedHTML = cleanedHTML.replace(/^```html\s*/i, '');
+			cleanedHTML = cleanedHTML.replace(/^```\s*/i, '');
+			cleanedHTML = cleanedHTML.replace(/\s*```$/i, '');
+			cleanedHTML = cleanedHTML.trim();
+			
+			if (!cleanedHTML.toLowerCase().startsWith('<!doctype html') && 
+				!cleanedHTML.toLowerCase().startsWith('<html')) {
+				cleanedHTML = createFallbackWebpage(productSummaries);
+			}
+			
+			const blob = new Blob([cleanedHTML], { type: 'text/html' });
+			const blobUrl = URL.createObjectURL(blob);
+			window.open(blobUrl, '_blank');
+			showExportNotification("✅ Webpage opened via fallback method!");
+		} catch (fallbackError) {
+			console.error('Fallback method also failed:', fallbackError);
+			showExportNotification(`❌ Could not open webpage. Error: ${error.message}`);
+		}
+	}
+}
+
+function createFallbackWebpage(productSummaries) {
+	const comparisonText = currentComparisonResult || "Comparison details not available.";
+	const generatedDate = new Date().toLocaleString();
+	
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Product Comparison - Smart Shopper</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			min-height: 100vh;
+			padding: 20px;
+			color: #333;
+		}
+		.container {
+			max-width: 1200px;
+			margin: 0 auto;
+		}
+		.header {
+			background: white;
+			padding: 30px;
+			border-radius: 15px;
+			box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+			margin-bottom: 30px;
+			text-align: center;
+		}
+		.header h1 {
+			font-size: 2.5em;
+			margin-bottom: 10px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+		}
+		.header p {
+			color: #666;
+			font-size: 0.9em;
+		}
+		.products-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+			gap: 20px;
+			margin-bottom: 30px;
+		}
+		.product-card {
+			background: white;
+			border-radius: 15px;
+			padding: 25px;
+			box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+			transition: transform 0.3s ease, box-shadow 0.3s ease;
+		}
+		.product-card:hover {
+			transform: translateY(-5px);
+			box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+		}
+		.product-header {
+			border-bottom: 2px solid #f0f0f0;
+			padding-bottom: 15px;
+			margin-bottom: 15px;
+		}
+		.product-title {
+			font-size: 1.3em;
+			font-weight: 600;
+			margin-bottom: 10px;
+			color: #333;
+		}
+		.product-info {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 15px;
+			margin-bottom: 15px;
+		}
+		.info-item {
+			font-size: 0.9em;
+		}
+		.price {
+			color: #667eea;
+			font-weight: 700;
+			font-size: 1.2em;
+		}
+		.rating {
+			color: #ff9800;
+		}
+		.value-score {
+			display: inline-block;
+			padding: 4px 12px;
+			border-radius: 20px;
+			font-size: 0.85em;
+			font-weight: 600;
+		}
+		.value-score.excellent { background: #1da462; color: white; }
+		.value-score.good { background: #4c8bf5; color: white; }
+		.value-score.fair { background: #ffcd46; color: #333; }
+		.value-score.poor { background: #dd5144; color: white; }
+		.price-alert {
+			display: inline-block;
+			padding: 4px 10px;
+			border-radius: 12px;
+			font-size: 0.85em;
+			font-weight: 600;
+			margin-top: 5px;
+		}
+		.price-alert.drop {
+			background: #e8f5e9;
+			color: #1da462;
+		}
+		.product-summary {
+			color: #666;
+			line-height: 1.6;
+			font-size: 0.95em;
+		}
+		.comparison-section {
+			background: white;
+			border-radius: 15px;
+			padding: 30px;
+			box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+		}
+		.comparison-section h2 {
+			font-size: 1.8em;
+			margin-bottom: 20px;
+			color: #333;
+		}
+		.comparison-content {
+			line-height: 1.8;
+			color: #555;
+			white-space: pre-wrap;
+		}
+		@media (max-width: 768px) {
+			.products-grid {
+				grid-template-columns: 1fr;
+			}
+			.header h1 {
+				font-size: 2em;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<h1>🏪 Product Comparison</h1>
+			<p>Generated on ${generatedDate}</p>
+		</div>
+		
+		<div class="products-grid">
+			${productSummaries.map((p, i) => {
+				const valueScoreCategory = p.valueScore !== null ? getScoreCategory(p.valueScore) : '';
+				return `
+				<div class="product-card">
+					<div class="product-header">
+						<div class="product-title">Product ${i + 1}: ${p.title || 'Unknown'}</div>
+						<div class="product-info">
+							${p.productData?.price ? `<span class="info-item price">${formatPrice(p.productData.price, p.productData.currency)}</span>` : ''}
+							${p.productData?.rating ? `<span class="info-item rating">⭐ ${p.productData.rating.toFixed(1)}/5</span>` : ''}
+							${p.productData?.reviewCount ? `<span class="info-item">(${formatReviewCount(p.productData.reviewCount)} reviews)</span>` : ''}
+							${p.valueScore !== null ? `<span class="value-score ${valueScoreCategory}">Value: ${p.valueScore.toFixed(1)}/10</span>` : ''}
+						</div>
+						${p.priceAlert ? `<div class="price-alert ${p.priceAlert.type}">${p.priceAlert.message}</div>` : ''}
+					</div>
+					<div class="product-summary">${p.extractedSummary.replace(/\n/g, '<br>')}</div>
+				</div>
+				`;
+			}).join('')}
+		</div>
+		
+		<div class="comparison-section">
+			<h2>📊 Detailed Comparison</h2>
+			<div class="comparison-content">${comparisonText.replace(/\n/g, '<br>')}</div>
+		</div>
+	</div>
+</body>
+</html>`;
 }
 
 /* Helper Functions */
