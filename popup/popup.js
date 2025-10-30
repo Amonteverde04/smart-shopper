@@ -77,17 +77,61 @@ btn.addEventListener("click", async () => {
 			return;
 		}
 
-		const summarizer = await createSummarizer();
+		updateLoadingText("Initializing AI models...");
+		
+		// Check if user gesture is still active
+		if (!navigator.userActivation.isActive) {
+			throw new Error("User interaction required. Please click the button again.");
+		}
+
+		// Create both models upfront while user gesture is active
+		// This prevents the gesture from expiring before model creation
+		// Using Promise.allSettled to handle partial failures gracefully
+		const [summarizerResult, languageModelResult] = await Promise.allSettled([
+			createSummarizer(),
+			createLanguageModel()
+		]);
+
+		const summarizer = summarizerResult.status === 'fulfilled' ? summarizerResult.value : null;
+		const languageModelSession = languageModelResult.status === 'fulfilled' ? languageModelResult.value : null;
+
+		if (summarizerResult.status === 'rejected') {
+			console.error('Summarizer creation failed:', summarizerResult.reason);
+		}
+		if (languageModelResult.status === 'rejected') {
+			console.error('Language model creation failed:', languageModelResult.reason);
+		}
+
+		if (!summarizer) {
+			throw new Error("Failed to initialize summarizer. Please try again.");
+		}
+
+		if (!languageModelSession) {
+			throw new Error("Failed to initialize language model. Please try again.");
+		}
+
+		updateLoadingText("Processing product pages...");
 		const productSummaries = await summarizeTabs(checkedTabs, summarizer, tooltipList);
 
 		if (productSummaries.length) {
 			displaySummaries(productSummaries);
-			const comparisonResult = await compareProducts(productSummaries);
+			const comparisonResult = await compareProducts(productSummaries, languageModelSession);
 			console.log(comparisonResult);
 			displayComparison(comparisonResult);
+		} else {
+			throw new Error("No products could be processed. Check the warnings for details.");
 		}
 	} catch (err) {
-		console.error(err);
+		console.error('Processing error:', err);
+		
+		// Show error in tooltip
+		tooltipWarning.style.display = "block";
+		const li = document.createElement("li");
+		li.textContent = `Error: ${err.message}`;
+		li.style.color = "#ff4444";
+		tooltipList.appendChild(li);
+		
+		updateLoadingText("Error occurred");
 	} finally {
 		setLoading(false);
 	}
@@ -105,15 +149,78 @@ function getCheckedTabs(tabs) {
 async function createSummarizer() {
 	const context = `You are an e-commerce shopping assistant agent. You specialize in providing complete and concise summaries of products, their reviews and pricing. Your goal is to guide users to purchase products that get them the most value for their money. Resolve the issue efficiently and professionally while reaching your goal. Do not make things up.`;
 
-	const options = { sharedContext: context };
-	if ((await Summarizer.availability()) === "unavailable") {
-		options.monitor = (m) =>
-			m.addEventListener("downloadprogress", (e) =>
-				console.log(`Downloaded ${e.loaded * 100}%`)
-			);
-	}
+	try {
+		const availability = await Summarizer.availability();
+		console.log('Summarizer availability:', availability);
+		
+		if (availability === "unavailable") {
+			throw new Error("Summarizer is not available on this device");
+		}
 
-	return navigator.userActivation.isActive ? Summarizer.create(options) : null;
+		const options = { sharedContext: context };
+		
+		// Add download progress monitoring for downloading/downloadable states
+		if (availability === "downloading" || availability === "downloadable") {
+			options.monitor = (m) => {
+				m.addEventListener("downloadprogress", (e) => {
+					const progress = Math.round(e.loaded * 100);
+					console.log(`Summarizer download progress: ${progress}%`);
+					updateLoadingText(`Downloading AI model... ${progress}%`);
+				});
+			};
+		}
+
+		// Ensure we have user activation before creating the summarizer
+		if (!navigator.userActivation.isActive) {
+			throw new Error("User gesture required for AI model initialization");
+		}
+
+		return await Summarizer.create(options);
+	} catch (error) {
+		console.error('Failed to create summarizer:', error);
+		throw error;
+	}
+}
+
+async function createLanguageModel() {
+	const initialPrompts = [
+		{
+			role: "system",
+			content: `You are a highly skilled e-commerce shopping assistant agent. You specialize in providing complete and concise comparisons of products, their reviews and pricing. Provide pros and cons with each product presented. Do not make things up.`,
+		},
+	];
+
+	try {
+		const availability = await LanguageModel.availability();
+		console.log('LanguageModel availability:', availability);
+		
+		if (availability === "unavailable") {
+			throw new Error("Language model is not available on this device");
+		}
+
+		const options = { initialPrompts: initialPrompts };
+		
+		// Add download progress monitoring for downloading/downloadable states
+		if (availability === "downloading" || availability === "downloadable") {
+			options.monitor = (m) => {
+				m.addEventListener("downloadprogress", (e) => {
+					const progress = Math.round(e.loaded * 100);
+					console.log(`Language model download progress: ${progress}%`);
+					updateLoadingText(`Downloading comparison model... ${progress}%`);
+				});
+			};
+		}
+
+		// Ensure we have user activation before creating the language model
+		if (!navigator.userActivation.isActive) {
+			throw new Error("User gesture required for AI model initialization");
+		}
+
+		return await LanguageModel.create(options);
+	} catch (error) {
+		console.error('Failed to create language model:', error);
+		throw error;
+	}
 }
 
 async function summarizeTabs(tabs, summarizer, tooltipList) {
@@ -128,9 +235,17 @@ async function summarizeTabs(tabs, summarizer, tooltipList) {
 			const { pageText } = await chrome.tabs.sendMessage(Number(tab.id), {
 				action: "extractProduct",
 			});
-			const summary = summarizer
-				? await summarizer.summarize(pageText)
-				: "Summarizer unavailable";
+			let summary;
+			if (summarizer) {
+				try {
+					summary = await summarizer.summarize(pageText);
+				} catch (summaryError) {
+					console.error('Summarization error:', summaryError);
+					summary = `Error summarizing: ${summaryError.message}`;
+				}
+			} else {
+				summary = "Summarizer unavailable";
+			}
 
 			productSummaries.push({ id: tab.id, title: tab.title, extractedSummary: summary });
 		} catch (e) {
@@ -168,28 +283,20 @@ function displaySummaries(summaries) {
 	scrollToId(summaryContainer.id);
 }
 
-async function compareProducts(productSummaries) {
-	const loadingText = document.getElementById("loading-text");
-	loadingText.textContent = "Comparing...";
+async function compareProducts(productSummaries, languageModelSession) {
+	updateLoadingText("Comparing products...");
 
-	const initialPrompts = [
-		{
-			role: "system",
-			content: `You are a highly skilled e-commerce shopping assistant agent. You specialize in providing complete and concise comparisons of products, their reviews and pricing. Provide pros and cons with each product presented. Do not make things up.`,
-		},
-	];
+	try {
+		if (!languageModelSession) {
+			throw new Error("Language model session is not available");
+		}
 
-	const options = { initialPrompts: initialPrompts };
-	if ((await LanguageModel.availability()) === "unavailable") {
-		options.monitor = (m) =>
-			m.addEventListener("downloadprogress", (e) =>
-				console.log(`Downloaded ${e.loaded * 100}%`)
-			);
+		const productSummariesJson = JSON.stringify(productSummaries);
+		return await languageModelSession.prompt(`Compare these products. Products:\n\n${productSummariesJson}`);
+	} catch (error) {
+		console.error('Failed to compare products:', error);
+		throw error;
 	}
-
-	const session = await LanguageModel.create(options);
-	const productSummariesJson = JSON.stringify(productSummaries);
-	return session.prompt(`Compare these products. Products:\n\n${productSummariesJson}`);
 }
 
 function displayComparison(result) {
@@ -199,6 +306,13 @@ function displayComparison(result) {
 }
 
 /* UI Helpers */
+
+function updateLoadingText(text) {
+	const loadingText = document.getElementById("loading-text");
+	if (loadingText) {
+		loadingText.textContent = text;
+	}
+}
 
 // Handle resize of table height and styled scroll bar and borders.
 window.addEventListener("resize", () => {
