@@ -29,4 +29,4 @@ Your AI-powered shopping assistant that instantly compares products side-by-side
 
 ### Demo
 
--   [Smart Shopper - Google Chrome Built-in AI Challenge 2025](https://youtu.be/JLfvk7UQFM4)
+-   [Smart Shopper - Google Chrome Built-in AI Challenge 2025](https://www.youtube.com/watch?v=sTB09MlSSC8)
