@@ -760,8 +760,43 @@ function showExportNotification(message) {
 }
 
 /* Streaming helper functions */
-async function streamWebpageGeneration(session, prompt) {
+async function openSelfContainedWebpageTab(embeddedData) {
+	// Use extension page URL so it has access to LanguageModel API
+	const extensionUrl = chrome.runtime.getURL('webpage-generator.html');
+	
+	// Encode data in URL hash (supports large data)
+	const dataString = JSON.stringify(embeddedData);
+	const urlWithData = extensionUrl + '#' + encodeURIComponent(dataString);
+	
+	// Get current window and open tab there
+	try {
+		const currentWindow = await chrome.windows.getCurrent();
+		const tab = await chrome.tabs.create({
+			url: urlWithData,
+			active: true,
+			windowId: currentWindow.id
+		});
+		return tab;
+	} catch (error) {
+		// Fallback to new window
+		const window = await chrome.windows.create({
+			url: urlWithData,
+			type: 'normal',
+			focused: true,
+			width: 1200,
+			height: 800
+		});
+		// Get the tab from the window
+		const tabs = await chrome.tabs.query({ windowId: window.id });
+		return tabs[0];
+	}
+}
+
+
+async function streamWebpageGenerationIntoTab(session, prompt, tabId, productSummaries) {
 	let fullHTML = '';
+	let lastUpdateTime = 0;
+	const UPDATE_INTERVAL = 100; // Update tab every 100ms to avoid too frequent updates
 	
 	try {
 		// Try promptStreaming() if available (Chrome's streaming API)
@@ -771,9 +806,20 @@ async function streamWebpageGeneration(session, prompt) {
 			// Handle async iterator
 			for await (const chunk of stream) {
 				fullHTML += chunk;
+				
+				// Update tab periodically (not on every chunk to avoid performance issues)
+				const now = Date.now();
+				if (now - lastUpdateTime > UPDATE_INTERVAL || fullHTML.length < 500) {
+					await updateTabContent(tabId, fullHTML, fullHTML.length);
+					lastUpdateTime = now;
+				}
+				
 				updateLoadingText(`Generating HTML... (${fullHTML.length} chars)`);
 			}
 			
+			// Final update with complete HTML
+			await updateTabContent(tabId, fullHTML, fullHTML.length);
+			showExportNotification("✅ Custom webpage generated!");
 			return fullHTML;
 		}
 		
@@ -790,24 +836,219 @@ async function streamWebpageGeneration(session, prompt) {
 				
 				const chunk = decoder.decode(value, { stream: true });
 				fullHTML += chunk;
+				
+				// Update tab periodically
+				const now = Date.now();
+				if (now - lastUpdateTime > UPDATE_INTERVAL || fullHTML.length < 500) {
+					await updateTabContent(tabId, fullHTML, fullHTML.length);
+					lastUpdateTime = now;
+				}
+				
 				updateLoadingText(`Generating HTML... (${fullHTML.length} chars)`);
 			}
 			
+			// Final update
+			await updateTabContent(tabId, fullHTML, fullHTML.length);
+			showExportNotification("✅ Custom webpage generated!");
 			return fullHTML;
 		}
 		
-		// If no streaming support, use regular prompt
-		return await (response && typeof response.then === 'function' ? response : session.prompt(prompt));
+		// If no streaming support, use regular prompt but still update tab
+		const result = await (response && typeof response.then === 'function' ? response : session.prompt(prompt));
+		
+		// Clean up result if needed
+		let htmlContent = typeof result === 'string' ? result : String(result);
+		htmlContent = htmlContent.trim();
+		
+		// Remove markdown code blocks if present
+		htmlContent = htmlContent.replace(/^```html\s*/i, '');
+		htmlContent = htmlContent.replace(/^```\s*/i, '');
+		htmlContent = htmlContent.replace(/\s*```$/i, '');
+		htmlContent = htmlContent.trim();
+		
+		// Validate HTML
+		if (!htmlContent.toLowerCase().startsWith('<!doctype html') && 
+			!htmlContent.toLowerCase().startsWith('<html')) {
+			htmlContent = createFallbackWebpage(productSummaries);
+		}
+		
+		await updateTabContent(tabId, htmlContent, htmlContent.length);
+		showExportNotification("✅ Custom webpage generated!");
+		return htmlContent;
 	} catch (error) {
 		// Final fallback: regular prompt
 		console.log('Streaming not available, using regular prompt:', error);
 		try {
 			const result = await session.prompt(prompt);
-			return result;
+			
+			// Clean and validate
+			let htmlContent = typeof result === 'string' ? result : String(result);
+			htmlContent = htmlContent.trim();
+			htmlContent = htmlContent.replace(/^```html\s*/i, '');
+			htmlContent = htmlContent.replace(/^```\s*/i, '');
+			htmlContent = htmlContent.replace(/\s*```$/i, '');
+			htmlContent = htmlContent.trim();
+			
+			if (!htmlContent.toLowerCase().startsWith('<!doctype html') && 
+				!htmlContent.toLowerCase().startsWith('<html')) {
+				htmlContent = createFallbackWebpage(productSummaries);
+			}
+			
+			await updateTabContent(tabId, htmlContent, htmlContent.length);
+			showExportNotification("✅ Custom webpage generated!");
+			return htmlContent;
 		} catch (fallbackError) {
-			throw fallbackError;
+			// Use fallback template
+			const fallbackHTML = createFallbackWebpage(productSummaries);
+			await updateTabContent(tabId, fallbackHTML, fallbackHTML.length);
+			showExportNotification("✅ Custom webpage generated (using template)!");
+			return fallbackHTML;
 		}
 	}
+}
+
+async function updateTabContent(tabId, html, charCount) {
+	try {
+		// Data URLs don't have access to Chrome extension APIs
+		// So we'll update the tab URL directly with the HTML content
+		
+		// For partial HTML, create a preview version with progress indicator
+		let htmlToDisplay = html;
+		if (html.length > 0 && (!html.toLowerCase().includes('</html>') || html.length < 1000)) {
+			// Create preview version showing what's been generated so far
+			htmlToDisplay = createPreviewHTML(html, charCount);
+		} else {
+			// Clean up complete HTML
+			let cleanedHTML = html.trim();
+			
+			// Remove markdown code blocks if present
+			cleanedHTML = cleanedHTML.replace(/^```html\s*/i, '');
+			cleanedHTML = cleanedHTML.replace(/^```\s*/i, '');
+			cleanedHTML = cleanedHTML.replace(/\s*```$/i, '');
+			cleanedHTML = cleanedHTML.trim();
+			
+			htmlToDisplay = cleanedHTML;
+		}
+		
+		// Update tab URL with the HTML content
+		const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlToDisplay);
+		await chrome.tabs.update(tabId, { url: dataUrl });
+	} catch (error) {
+		console.error('Error updating tab content:', error);
+		// Fallback: update tab URL directly
+		const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+		await chrome.tabs.update(tabId, { url: dataUrl });
+	}
+}
+
+function createPreviewHTML(partialHTML, charCount) {
+	// If we have enough HTML to be meaningful, show it
+	if (partialHTML.toLowerCase().includes('<!doctype html') || partialHTML.toLowerCase().includes('<html')) {
+		return partialHTML + `
+		<style>
+			.streaming-overlay {
+				position: fixed;
+				bottom: 20px;
+				right: 20px;
+				background: rgba(102, 126, 234, 0.9);
+				color: white;
+				padding: 15px 20px;
+				border-radius: 10px;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+				font-size: 14px;
+				z-index: 10000;
+			}
+			.streaming-indicator {
+				display: inline-block;
+				width: 8px;
+				height: 8px;
+				background: white;
+				border-radius: 50%;
+				margin-right: 8px;
+				animation: pulse 1.5s ease-in-out infinite;
+			}
+			@keyframes pulse {
+				0%, 100% { opacity: 1; }
+				50% { opacity: 0.3; }
+			}
+		</style>
+		<div class="streaming-overlay">
+			<span class="streaming-indicator"></span>
+			Generating... ${charCount} characters
+		</div>`;
+	}
+	
+	// Otherwise show loading screen with progress
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Generating Comparison... - Smart Shopper</title>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: white;
+		}
+		.loading-container {
+			text-align: center;
+		}
+		.spinner {
+			border: 4px solid rgba(255,255,255,0.3);
+			border-top: 4px solid white;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			animation: spin 1s linear infinite;
+			margin: 0 auto 20px;
+		}
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+		.loading-text {
+			font-size: 18px;
+			font-weight: 600;
+			margin-bottom: 10px;
+		}
+		.char-count {
+			font-size: 14px;
+			opacity: 0.9;
+		}
+		.progress-bar {
+			width: 300px;
+			height: 4px;
+			background: rgba(255,255,255,0.3);
+			border-radius: 2px;
+			margin: 20px auto;
+			overflow: hidden;
+		}
+		.progress-fill {
+			height: 100%;
+			background: white;
+			border-radius: 2px;
+			transition: width 0.3s ease;
+		}
+	</style>
+</head>
+<body>
+	<div class="loading-container">
+		<div class="spinner"></div>
+		<div class="loading-text">🎨 Generating your comparison webpage...</div>
+		<div class="char-count">${charCount} characters generated</div>
+		<div class="progress-bar">
+			<div class="progress-fill" style="width: ${Math.min(100, (charCount / 5000) * 100)}%"></div>
+		</div>
+	</div>
+</body>
+</html>`;
 }
 
 /* Feature 4: Generate Custom Comparison Webpage with LLM */
@@ -883,13 +1124,19 @@ Generate ONLY the complete HTML code, starting with <!DOCTYPE html>. Do not incl
 			};
 		}
 
-		// Ensure user activation
-		const session = await LanguageModel.create(options);
-		updateLoadingText("Generating HTML...");
+		// Prepare data to embed in the self-contained page
+		const embeddedData = {
+			prompt: prompt,
+			productSummaries: productSummaries,
+			comparisonText: comparisonText,
+			initialPrompts: initialPrompts,
+			fallbackWebpageHTML: createFallbackWebpage(productSummaries)
+		};
 		
-		// Stream the HTML generation
-		const htmlContent = await streamWebpageGeneration(session, prompt);
-		await openComparisonWebpage(htmlContent, productSummaries);
+		// Open tab immediately with self-contained generation page
+		const tab = await openSelfContainedWebpageTab(embeddedData);
+		showExportNotification("✅ Webpage tab opened! Generating...");
+		updateLoadingText("Tab generating webpage...");
 	} catch (error) {
 		console.error('Failed to generate webpage:', error);
 		showExportNotification(`❌ Error: ${error.message}`);
